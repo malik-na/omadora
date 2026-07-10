@@ -14,7 +14,7 @@ COPR_REPOS=(
   "lionheartp/Hyprland"
   "atim/starship"
   "atim/lazygit"
-  "pgdev/ghostty"
+  "scottames/ghostty"
 )
 
 # Optional COPR repos (may not be available for all Fedora versions)
