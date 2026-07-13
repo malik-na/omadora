@@ -10,6 +10,11 @@ if ! is_fedora; then
 fi
 
 # 0. Enable Flathub remote (required for Flatpak installs)
+#
+# Everything Flatpak here stays in the user installation. dnf pulls flatpak in during this same run,
+# and its system repository under /var/lib/flatpak is only created on the next boot - so a system
+# scoped install during a fresh Omarchy install fails with "opening repo: No such file or directory"
+# and leaves the apps missing. --user needs no such repository, and no sudo either.
 flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
 # 1. lazydocker (GitHub binary)
@@ -53,15 +58,15 @@ if ! command -v mise &>/dev/null; then
 fi
 
 # 4. typora (Flatpak)
-if ! command -v typora &>/dev/null; then
+if ! command -v typora &>/dev/null && ! flatpak info io.typora.Typora &>/dev/null; then
   echo "Installing typora (Flatpak)..."
-  flatpak install -y flathub io.typora.Typora
+  flatpak install -y --user flathub io.typora.Typora
 fi
 
 # 5. localsend (Flatpak)
 if ! command -v localsend &>/dev/null && ! flatpak info org.localsend.localsend_app &>/dev/null; then
   echo "Installing localsend (Flatpak)..."
-  flatpak install -y flathub org.localsend.localsend_app
+  flatpak install -y --user flathub org.localsend.localsend_app
 fi
 
 # 6. swayosd (COPR or build from source)
