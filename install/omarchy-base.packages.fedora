@@ -96,7 +96,9 @@ flatpak
 power-profiles-daemon
 NetworkManager-tui
 nm-connection-editor
-blueman
+# No blueman: bluetui is the Bluetooth UI (installed by install/helpers/fedora-rust-tuis.sh) and
+# omarchy-launch-bluetooth always prefers it, so blueman was never reached - it only added a GUI app to
+# the launcher. It stays a fallback in omarchy-launch-bluetooth for anyone who installs it by hand.
 
 # Display Manager
 sddm
