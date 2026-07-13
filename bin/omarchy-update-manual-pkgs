@@ -22,9 +22,12 @@ if ! is_fedora; then
   exit 0
 fi
 
-if command -v flatpak >/dev/null 2>&1 && [[ -n "$(flatpak list --app --columns=application 2>/dev/null)" ]]; then
+# --user, because that is where the installer puts them. A plain `flatpak update` also reaches for the
+# system installation, and refreshing its metadata needs polkit: the update then stops dead on a
+# password prompt in the middle of the run - or hangs outright where no polkit agent is listening.
+if command -v flatpak >/dev/null 2>&1 && [[ -n "$(flatpak list --app --user --columns=application 2>/dev/null)" ]]; then
   echo -e "\e[32m\nUpdate Flatpak apps\e[0m"
-  flatpak update -y || echo "[WARNING] Flatpak update failed - continuing"
+  flatpak update -y --user || echo "[WARNING] Flatpak update failed - continuing"
 fi
 
 stamp="$HOME/.local/state/omarchy/walker-elephant-version"
