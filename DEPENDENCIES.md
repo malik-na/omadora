@@ -112,18 +112,7 @@ covers what dnf cannot reach:
 | mise runtimes (node, bun, deno, zls) | **not updated automatically.** `mise use -g <tool>@latest` re-resolves when run by hand. |
 | `uv`, `terminaltexteffects` (pip), 1Password, LazyVim starter | **not updated automatically** - they are installed once |
 
-## 8. [WARNING] Sources that point at the wrong project
-
-Found while testing the installer end to end. Both predate the Fedora 44 work and are listed here
-rather than quietly changed:
-
-- `bin/omarchy-reinstall` clones **`malik-na/omarchy-mac`** (branch `fedora`) - a different, older
-  repository - not `malik-na/omarchy-mac-fedora`. A user running it does not get this project back.
-- `bin/omarchy-reinstall-git` clones **`basecamp/omarchy`** (branch `master`) and moves it over
-  `$OMARCHY_PATH`. That is upstream's Arch tree: pacman package lists, no `.fedora` lists, no dnf
-  helpers. On a Fedora machine it replaces a working install with one that cannot work.
-
-## 9. What this repository does *not* use
+## 8. What this repository does *not* use
 
 No AUR, no `pacman`/`yay`/`paru`, no `mkinitcpio`, no `limine` - those are upstream Omarchy's, and
 every path here goes through `dnf`, `rpm` and COPR instead. Boot and initramfs are `dracut` and
