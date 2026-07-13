@@ -3,6 +3,7 @@ OMARCHY_INSTALL="${OMARCHY_INSTALL:-$HOME/.local/share/omarchy/install}"
 run_logged "$OMARCHY_INSTALL/helpers/fedora-gum.sh"
 
 run_logged $OMARCHY_INSTALL/packaging/base.sh
+run_logged $OMARCHY_INSTALL/packaging/other.sh
 run_logged $OMARCHY_INSTALL/packaging/fonts.sh
 run_logged $OMARCHY_INSTALL/packaging/nvim.sh
 run_logged $OMARCHY_INSTALL/packaging/icons.sh
