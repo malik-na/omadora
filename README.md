@@ -24,7 +24,7 @@ _This project is an extension of [Omarchy Mac](https://github.com/malik-na/omarc
 Requirements:
 
 - Apple Silicon Mac (M1/M2 family)
-- Fedora Asahi Remix Minimal (aarch64)
+- **Fedora Asahi Remix 44 Minimal (aarch64) or newer**
 - A regular user with sudo access
 - Internet connectivity
 - `git` installed
@@ -34,11 +34,33 @@ Unsupported targets:
 - Arch/Asahi Alarm runtime paths
 - Non-Asahi Fedora installs
 - x86_64
+- **Fedora Asahi Remix 43 and older** - see below
+
+### Already on Fedora Asahi Remix 43?
+
+Omarchy 3.8.2 requires Fedora 44. Several packages it needs no longer exist on 43, and the Hyprland
+0.55 build it targets is only published for the 44 chroot. Upgrade Fedora first:
+
+```bash
+sudo dnf upgrade --refresh
+sudo dnf install dnf-plugin-system-upgrade
+sudo dnf system-upgrade download --releasever=44
+sudo dnf system-upgrade reboot
+```
+
+The machine reboots into the upgrade, so close your work first. When it comes back up, run
+`omarchy-update`.
+
+Omarchy never runs the system upgrade for you: it reboots the machine and can leave an Asahi install
+unbootable, so it is your call, not the installer's. Until you upgrade, the installer, `omarchy-update`
+and `omarchy-migrate` all stop with these instructions and change nothing - an existing Fedora 43
+install keeps working on the Omarchy version it already has.
 
 Checklist:
 
 - [ ] Backup completed
 - [ ] Fedora Asahi device compatibility checked
+- [ ] Running Fedora Asahi Remix 44 or newer (`cat /etc/os-release`)
 - [ ] Fedora Asahi first-boot TTY setup completed (language, hostname, time, root password, user, wheel)
 - [ ] Internet connected
 - [ ] Sudo user ready

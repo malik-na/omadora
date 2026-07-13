@@ -8,6 +8,15 @@ if [[ -f "$OMARCHY_INSTALL/helpers/distro.sh" ]]; then
   source "$OMARCHY_INSTALL/helpers/distro.sh"
 fi
 
+# Fedora 44 gate. This has to sit ahead of the migration loop, not in a migration file: migrations
+# run in timestamp order, so any migration we add now would run last - after every upstream migration
+# had already touched the system. Stopping here is what keeps a Fedora 43 box on a working 3.5.0
+# instead of a half-applied 3.8.2.
+if declare -F is_fedora_supported_version >/dev/null && is_fedora && ! is_fedora_supported_version; then
+  fedora_upgrade_instructions
+  exit 1
+fi
+
 is_arch_only_migration() {
   local file="$1"
   grep -Eq "\\bpacman\\b|\\byay\\b|\\bparu\\b|/etc/pacman|mkinitcpio|limine|pacman-key|omarchy-refresh-pacman|linux-asahi|install/config/hardware/(fix-fkeys|intel|nvidia|fix-surface-keyboard|fix-bcm43xx|fix-apple-t2|fix-apple-spi-keyboard|fix-apple-bcm43xx|fix-apple-bcm4360|fix-apple-suspend-nvme)\\.sh" "$file"

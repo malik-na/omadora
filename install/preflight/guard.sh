@@ -20,6 +20,13 @@ if ! is_fedora; then
   abort "Unsupported distro (Fedora Asahi Remix required)"
 fi
 
+# Fedora 44 or newer only. An older release is a hard stop, not a soft abort: half-installing
+# Omarchy 3.8.2 on Fedora 43 leaves the machine in a broken in-between state.
+if is_fedora && ! is_fedora_supported_version; then
+  fedora_upgrade_instructions
+  exit 1
+fi
+
 ARCH="$(uname -m)"
 if [[ "$ARCH" != "aarch64" ]]; then
   abort "Fedora Asahi Remix requires ARM64 (aarch64) hardware. Detected: $ARCH"

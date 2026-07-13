@@ -64,12 +64,31 @@ if [[ "$(uname -m)" != "aarch64" ]]; then
   exit 1
 fi
 
+# Fedora 44 or newer only, and the check has to happen here - before the dnf upgrade below and before
+# an existing installation is replaced. Stopping later would leave a Fedora 43 user with their working
+# Omarchy already deleted.
+FEDORA_VERSION="$(. /etc/os-release 2>/dev/null && echo "${VERSION_ID%%.*}")"
+
+if [[ ! $FEDORA_VERSION =~ ^[0-9]+$ ]] || ((FEDORA_VERSION < 44)); then
+  echo -e "\n[CRITICAL] Omarchy requires Fedora Asahi Remix 44 or newer. Detected: Fedora ${FEDORA_VERSION:-unknown}."
+  echo
+  echo "Nothing has been changed. Upgrade Fedora first, then re-run this installer:"
+  echo
+  echo "  sudo dnf upgrade --refresh"
+  echo "  sudo dnf install dnf-plugin-system-upgrade"
+  echo "  sudo dnf system-upgrade download --releasever=44"
+  echo "  sudo dnf system-upgrade reboot"
+  echo
+  echo "The machine reboots into the upgrade, so close your work first."
+  exit 1
+fi
+
 if ! grep -q "asahi" /proc/version 2>/dev/null; then
   echo -e "\n❌ Fedora Asahi kernel not detected."
   exit 1
 fi
 
-echo -e "\n🐧 Detected: \e[34mFedora Asahi Remix\e[0m"
+echo -e "\n🐧 Detected: \e[34mFedora Asahi Remix $FEDORA_VERSION\e[0m"
 OMARCHY_BRANCH="${OMARCHY_REF:-fedora}"
 
 echo -e "\n📦 Installing Omarchy for: \e[32m$OMARCHY_BRANCH\e[0m"
