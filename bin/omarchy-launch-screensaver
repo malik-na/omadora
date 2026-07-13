@@ -20,7 +20,7 @@ fi
 # Close any visible launcher UI before launching screensaver
 pkill -f "walker --dmenu" 2>/dev/null || true
 
-focused=$(hyprctl monitors -j | jq -r '.[] | select(.focused == true).name')
+focused=$(omarchy-hyprland-monitor-focused)
 terminal=$(xdg-terminal-exec --print-id)
 
 for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do

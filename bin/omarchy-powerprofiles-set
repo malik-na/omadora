@@ -1,13 +1,37 @@
 #!/bin/bash
 
+# Set the power profile. Accepts either an abstract state (ac|battery), which is
+# mapped to an available profile with a sane fallback, or a concrete
+# powerprofilesctl profile name (e.g. performance|balanced|power-saver).
+#
+# Usage: omarchy-powerprofiles-set <ac|battery|profile>
+
 if (($# == 0)); then
-  echo "Usage: omarchy-powerprofiles-set <profile>"
+  echo "Usage: omarchy-powerprofiles-set <ac|battery|profile>"
   exit 1
 fi
 
-if command -v powerprofilesctl >/dev/null 2>&1; then
-  exec powerprofilesctl set "$1"
+if ! command -v powerprofilesctl >/dev/null 2>&1; then
+  notify-send "Power profile" "powerprofilesctl is not installed. Install power-profiles-daemon."
+  exit 1
 fi
 
-notify-send "Power profile" "powerprofilesctl is not installed. Install power-profiles-daemon."
-exit 1
+mapfile -t profiles < <(powerprofilesctl list | awk '/^\s*[* ]\s*[a-zA-Z0-9\-]+:$/ { gsub(/^[*[:space:]]+|:$/,""); print }')
+
+case "$1" in
+  ac)
+    # Prefer performance, fall back to balanced
+    if [[ " ${profiles[*]} " == *" performance "* ]]; then
+      powerprofilesctl set performance
+    else
+      powerprofilesctl set balanced
+    fi
+    ;;
+  battery)
+    powerprofilesctl set balanced
+    ;;
+  *)
+    # Concrete profile name (e.g. selected from the Omarchy menu)
+    powerprofilesctl set "$1"
+    ;;
+esac

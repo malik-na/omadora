@@ -2,7 +2,7 @@
 
 set -e
 
-# Run the update inside a PTY so pacman/yay keep showing download progress
+# Run the update inside a PTY so dnf keeps showing download progress
 # while still logging the full session for later analysis.
 if [[ -z $OMARCHY_UPDATE_LOGGED ]]; then
   if command -v script >/dev/null 2>&1; then
