@@ -14,6 +14,19 @@ if [[ -z $OMARCHY_UPDATE_LOGGED ]]; then
   exec env OMARCHY_UPDATE_LOGGED=1 script -qefc "$script_command" "/tmp/omarchy-update.log"
 fi
 
+# Fedora 44 gate: on an older release, print the upgrade instructions and stop cleanly - before the
+# snapshot, the git pull and the pipeline. omarchy-update-perform refuses too (exit 1) for direct and
+# boot.sh callers and the tests, but here we exit 0 so the GUI update flow (menu / mako notification)
+# shows only the instructions instead of the generic "Something went wrong" from the ERR trap below.
+OMARCHY_INSTALL="${OMARCHY_INSTALL:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/install}"
+if [[ -f "$OMARCHY_INSTALL/helpers/distro.sh" ]]; then
+  source "$OMARCHY_INSTALL/helpers/distro.sh"
+  if is_fedora && ! is_fedora_supported_version; then
+    fedora_upgrade_instructions
+    exit 0
+  fi
+fi
+
 trap 'echo ""; echo -e "\033[0;31mSomething went wrong during the update!\n\nPlease review the output above carefully, correct the error, and retry the update.\n\nIf you need assistance, get help from the community at https://omarchy.org/discord\033[0m"' ERR
 
 if [[ $1 == "-y" ]] || omarchy-update-confirm; then
