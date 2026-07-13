@@ -50,4 +50,12 @@ yay-debug
 yt6801-dkms
 zram-generator
 
+# Intel encoding processing (x86-only, skipped on Apple Silicon)
+#libvpl
+#vpl-gpu-rt
+
+# Vulkan drivers (x86 GPUs; Apple Silicon uses Fedora mesa-vulkan-drivers via the .fedora list)
+#vulkan-intel
+#vulkan-radeon
+#vulkan-asahi
 

@@ -15,6 +15,7 @@ if [[ -f $FIRST_RUN_MODE ]]; then
   }
 
   run_step "$OMARCHY_PATH/install/first-run/battery-monitor.sh"
+  run_step "$OMARCHY_PATH/install/first-run/recover-internal-monitor.sh"
   run_step "$OMARCHY_PATH/install/first-run/cleanup-reboot-sudoers.sh"
   run_step "$OMARCHY_PATH/install/first-run/firewall.sh"
   run_step "$OMARCHY_PATH/install/first-run/dns-resolver.sh"

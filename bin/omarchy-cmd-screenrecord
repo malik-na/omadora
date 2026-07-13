@@ -130,7 +130,7 @@ stop_screenrecording() {
     cleanup_webcam
     notify-send "Screen recording error" "Recording process had to be force-killed. Video may be corrupted." -u critical -t 5000
   else
-    trim_first_frame
+    finalize_recording
     local filename=$(cat "$RECORDING_FILE" 2>/dev/null)
     local preview="${filename%.mp4}-preview.png"
 
@@ -153,6 +153,27 @@ toggle_screenrecording_indicator() {
 
 screenrecording_active() {
   pgrep -f "\b(wf-recorder|gpu-screen-recorder)\b" >/dev/null || pgrep -f "WebcamOverlay" >/dev/null
+}
+
+finalize_recording() {
+  local latest
+  latest=$(cat "$RECORDING_FILE" 2>/dev/null)
+  [[ -f $latest ]] || return
+
+  # Trim the first frame, and normalize audio to -14 LUFS if present, in a single pass
+  local args=(-y -ss 0.1 -i "$latest")
+  if ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "$latest" 2>/dev/null | grep -q audio; then
+    args+=(-af loudnorm=I=-14:TP=-1.5:LRA=11 -c:v copy)
+  else
+    args+=(-c copy)
+  fi
+
+  local processed="${latest%.mp4}-processed.mp4"
+  if ffmpeg "${args[@]}" "$processed" -loglevel quiet 2>/dev/null; then
+    mv "$processed" "$latest"
+  else
+    rm -f "$processed"
+  fi
 }
 
 if screenrecording_active; then
