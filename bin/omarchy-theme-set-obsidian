@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# omarchy:summary=Sync Omarchy theme to all Obsidian vaults
 # omarchy-theme-set-obsidian: Bootstrap and update Omarchy theme for Obsidian
 #
 # - Ensures registry at ~/.local/state/omarchy/obsidian-vaults

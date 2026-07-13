@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# omarchy:summary=Update AUR packages if any are installed
 # Update AUR packages if any are installed
 if omarchy-cmd-missing pacman yay; then
   exit 0

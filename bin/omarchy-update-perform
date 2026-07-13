@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# omarchy:summary=Run the full Omarchy update pipeline
+# omarchy:requires-sudo=true
+
 set -e
 
 # Run the update inside a PTY so dnf keeps showing download progress

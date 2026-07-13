@@ -1,24 +1,39 @@
 #!/bin/bash
 
-# Set the power profile. Accepts either an abstract state (ac|battery), which is
-# mapped to an available profile with a sane fallback, or a concrete
-# powerprofilesctl profile name (e.g. performance|balanced|power-saver).
-#
-# Usage: omarchy-powerprofiles-set <ac|battery|profile>
+# omarchy:summary=Set the power profile to the requested level, falling back to balanced
+# omarchy:args=[autodetect|ac|battery|profile]
 
-if (($# == 0)); then
-  echo "Usage: omarchy-powerprofiles-set <ac|battery|profile>"
-  exit 1
-fi
+# Accepts an abstract state (ac|battery), a concrete powerprofilesctl profile
+# name, or (with no argument / "autodetect") auto-detects AC vs battery.
 
 if ! command -v powerprofilesctl >/dev/null 2>&1; then
   notify-send "Power profile" "powerprofilesctl is not installed. Install power-profiles-daemon."
   exit 1
 fi
 
+action="${1-}"
+
+# Auto-detect when called with no argument: treat any Mains or USB
+# power-supply device reporting online=1 as "on AC". This handles
+# USB-C only laptops where the legacy AC device may not fire udev
+# events, and also avoids false negatives from per-port USB-C devices
+# that are present-but-empty (online=0) while another port supplies power.
+if [[ -z $action || $action == "autodetect" ]]; then
+  action=battery
+  for ps in /sys/class/power_supply/*; do
+    [[ -r $ps/online && -r $ps/type ]] || continue
+    type=$(cat "$ps/type")
+    [[ $type == "Mains" || $type == "USB" ]] || continue
+    if [[ $(cat "$ps/online") == "1" ]]; then
+      action=ac
+      break
+    fi
+  done
+fi
+
 mapfile -t profiles < <(powerprofilesctl list | awk '/^\s*[* ]\s*[a-zA-Z0-9\-]+:$/ { gsub(/^[*[:space:]]+|:$/,""); print }')
 
-case "$1" in
+case "$action" in
   ac)
     # Prefer performance, fall back to balanced
     if [[ " ${profiles[*]} " == *" performance "* ]]; then
@@ -32,6 +47,6 @@ case "$1" in
     ;;
   *)
     # Concrete profile name (e.g. selected from the Omarchy menu)
-    powerprofilesctl set "$1"
+    powerprofilesctl set "$action"
     ;;
 esac

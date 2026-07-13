@@ -28,3 +28,5 @@ if command -v fzf &> /dev/null; then
   done
   unset _fzf_completion _fzf_keybindings
 fi
+
+source "$OMARCHY_PATH/default/bash/completions"

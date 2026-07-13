@@ -8,6 +8,8 @@
 # Example of minimal system menu:
 #
 # show_system_menu() {
+#   case $(menu "System" "  Lock\n󰐥  Shutdown") in
+#   *Lock*) omarchy-system-lock ;;
 #   case $(menu "System" "  Lock\n󰐥  Shutdown") in
 #   *Lock*) omarchy-lock-screen ;;
 #   *Shutdown*) omarchy-system-shutdown ;;

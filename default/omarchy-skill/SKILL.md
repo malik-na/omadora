@@ -8,7 +8,7 @@ description: >
   monitors, gaps, borders, blur, opacity, waybar, walker, terminal config, themes,
   wallpaper, night light, idle, lock screen, screenshots, layer rules, workspace
   settings, display config, and user-facing omarchy commands. Excludes Omarchy
-  source development in ~/.local/share/omarchy/ and omarchy-dev-* workflows.
+  source development in ~/.local/share/omarchy/ and `omarchy dev` workflows.
 ---
 
 # Omarchy Mac Fedora Skill
@@ -42,12 +42,12 @@ It is not for contributing to Omarchy source code.
 - Window behavior, animations, opacity, blur, gaps, borders
 - Layer rules, workspace settings, display/monitor configuration
 - Themes, wallpapers, fonts, appearance changes
-- User-facing `omarchy-*` commands (`omarchy-theme-*`, `omarchy-refresh-*`, `omarchy-restart-*`, etc.)
+- User-facing `omarchy` commands (`omarchy theme ...`, `omarchy refresh ...`, `omarchy restart ...`, etc.)
 - Screenshots, screen recording, night light, idle behavior, lock screen
 
 **If you're about to edit a config file in ~/.config/ on this system, STOP and use this skill first.**
 
-**Do NOT use this skill for Omarchy development tasks** (editing files in `~/.local/share/omarchy/`, creating migrations, or running `omarchy-dev-*` workflows).
+**Do NOT use this skill for Omarchy development tasks** (editing files in `~/.local/share/omarchy/`, creating migrations, or running `omarchy dev ...` workflows).
 
 ## Critical Safety Rules
 
@@ -69,7 +69,7 @@ This directory contains Omarchy Mac Fedora source files managed by git. Any chan
 ```
 
 **Reading `~/.local/share/omarchy/` is SAFE and useful** - do it freely to:
-- Understand how omarchy commands work: `cat $(which omarchy-theme-set)`
+- Understand how omarchy commands work: `omarchy theme set --help` or `cat $(which omarchy-theme-set)`
 - See default configs before customizing: `cat ~/.local/share/omarchy/config/waybar/config.jsonc`
 - Check stock theme files to copy for customization
 - Reference default hyprland settings: `cat ~/.local/share/omarchy/default/hypr/*`
@@ -98,18 +98,25 @@ Omarchy Mac Fedora is built on:
 Omarchy Mac Fedora provides ~145 commands following `omarchy-<category>-<action>` pattern.
 
 ```bash
-# List all omarchy commands
-compgen -c | grep -E '^omarchy-' | sort -u
+# List every documented command and its summary
+omarchy commands
 
-# Find commands by category
-compgen -c | grep -E '^omarchy-theme'
-compgen -c | grep -E '^omarchy-restart'
+# Show the commands inside a group
+omarchy theme --help
+omarchy refresh --help
+omarchy restart --help
+
+# Show help for a specific command (does not execute it)
+omarchy theme set --help
+
+# Machine-readable listing (binary, route, summary, args, aliases)
+omarchy commands --json
 
 # Read a command's source to understand it
 cat $(which omarchy-theme-set)
 ```
 
-### Command Categories
+### Command Groups
 
 | Prefix | Purpose | Example |
 |--------|---------|---------|
@@ -145,7 +152,9 @@ cat $(which omarchy-theme-set)
 **Key behaviors:**
 - Hyprland auto-reloads on config save (no restart needed for most changes)
 - Use `hyprctl reload` to force reload
-- Use `omarchy-refresh-hyprland` to reset to defaults
+- After ANY Hyprland config change, validate with `hyprctl reload` followed by `hyprctl configerrors`
+- If `hyprctl configerrors` reports errors, address them and rerun validation until clean or until a real blocker is identified
+- Use `omarchy refresh hyprland` to reset to defaults
 
 ### Waybar (Status Bar)
 
@@ -155,9 +164,9 @@ cat $(which omarchy-theme-set)
 └── style.css          # Styling
 ```
 
-**Waybar does NOT auto-reload.** You MUST run `omarchy-restart-waybar` after any config changes.
+**Waybar does NOT auto-reload.** You MUST run `omarchy restart waybar` after any config changes.
 
-**Commands:** `omarchy-restart-waybar`, `omarchy-refresh-waybar`, `omarchy-toggle-waybar`
+**Commands:** `omarchy restart waybar`, `omarchy refresh waybar`, `omarchy toggle waybar`
 
 ### Terminals
 
@@ -167,7 +176,7 @@ cat $(which omarchy-theme-set)
 ~/.config/ghostty/config
 ```
 
-**Command:** `omarchy-restart-terminal`
+**Command:** `omarchy restart terminal`
 
 ### Other Configs
 
@@ -196,10 +205,10 @@ cp ~/.config/hypr/bindings.conf ~/.config/hypr/bindings.conf.bak.$(date +%s)
 # 3. Make changes with Edit tool
 
 # 4. Apply changes
-# - Hyprland: auto-reloads on save (no restart needed)
-# - Waybar: MUST restart with omarchy-restart-waybar
-# - Walker: MUST restart with omarchy-restart-walker
-# - Terminals: MUST restart with omarchy-restart-terminal
+# - Hyprland: auto-reloads on save, but MUST validate with `hyprctl reload` and `hyprctl configerrors`
+# - Waybar: MUST restart with `omarchy restart waybar`
+# - Walker: MUST restart with `omarchy restart walker`
+# - Terminals: MUST restart with `omarchy restart terminal`
 ```
 
 ### Pattern 2: Make a new theme
@@ -207,7 +216,7 @@ cp ~/.config/hypr/bindings.conf ~/.config/hypr/bindings.conf.bak.$(date +%s)
 1. Create a directory under ~/.config/omarchy/themes.
 2. See how an existing theme is done via ~/.local/share/omarchy/themes/catppuccin.
 3. Download a matching background (or several) from the internet and put them in ~/.config/omarchy/themes/[name-of-new-theme]
-4. When done with the theme, run omarchy-theme-set "Name of new theme"
+4. When done with the theme, run `omarchy theme set "Name of new theme"`
 
 ### Pattern 3: Use Hooks for Automation
 
@@ -218,7 +227,7 @@ Create scripts in `~/.config/omarchy/hooks/` to run automatically on events:
 ~/.config/omarchy/hooks/
 ├── theme-set        # Runs after theme change (receives theme name as $1)
 ├── font-set         # Runs after font change
-└── post-update      # Runs after omarchy-update
+└── post-update      # Runs after `omarchy update`
 ```
 
 Example hook (`~/.config/omarchy/hooks/theme-set`):
@@ -235,8 +244,8 @@ When customizations go wrong:
 
 ```bash
 # Reset specific config (creates backup automatically)
-omarchy-refresh-waybar
-omarchy-refresh-hyprland
+omarchy refresh waybar
+omarchy refresh hyprland
 
 # The refresh command:
 # 1. Backs up current config with timestamp
@@ -249,12 +258,11 @@ omarchy-refresh-hyprland
 ### Themes
 
 ```bash
-omarchy-theme-list              # Show available themes
-omarchy-theme-current           # Show current theme
-omarchy-theme-set <name>        # Apply theme (use "Tokyo Night" not "tokyo-night")
-omarchy-theme-next              # Cycle to next theme
-omarchy-theme-bg-next           # Cycle wallpaper
-omarchy-theme-install <url>     # Install from git repo
+omarchy theme list              # Show available themes
+omarchy theme current           # Show current theme
+omarchy theme set <name>        # Apply theme (use "Tokyo Night" not "tokyo-night")
+omarchy theme bg next           # Cycle wallpaper
+omarchy theme install <url>     # Install from git repo
 ```
 
 ### Keybindings
@@ -266,11 +274,11 @@ bind = SUPER, Q, killactive
 bind = SUPER SHIFT, E, exit
 ```
 
-View current bindings: `omarchy-menu-keybindings --print`
+View current bindings: `omarchy menu keybindings --print`
 
 **IMPORTANT: When re-binding an existing key:**
 
-1. First check existing bindings: `omarchy-menu-keybindings --print`
+1. First check existing bindings: `omarchy menu keybindings --print`
 2. If the key is already bound, you MUST add an `unbind` directive BEFORE your new `bind`
 3. Inform the user what the key was previously bound to
 
@@ -308,9 +316,9 @@ Window rules go in `~/.config/hypr/hyprland.conf` or a sourced file. Always veri
 ### Fonts
 
 ```bash
-omarchy-font-list               # Available fonts
-omarchy-font-current            # Current font
-omarchy-font-set <name>         # Change font
+omarchy font list               # Available fonts
+omarchy font current            # Current font
+omarchy font set <name>         # Change font
 ```
 
 ### System
@@ -324,27 +332,27 @@ omarchy-system-shutdown         # Shutdown
 omarchy-system-reboot           # Reboot
 ```
 
-**IMPORTANT:** Always run `omarchy-debug` with `--no-sudo --print` flags to avoid interactive sudo prompts that will hang the terminal.
+**IMPORTANT:** Always run `omarchy debug` with `--no-sudo --print` flags to avoid interactive sudo prompts that will hang the terminal.
 
 ## Troubleshooting
 
 ```bash
 # Get debug information (ALWAYS use these flags to avoid interactive prompts)
-omarchy-debug --no-sudo --print
+omarchy debug --no-sudo --print
 
 # Upload logs for support
-omarchy-upload-log
+omarchy upload log
 
 # Reset specific config to defaults
-omarchy-refresh-<app>
+omarchy refresh <app>
 
 # Refresh specific config file
 # config-file path is relative to ~/.config/
-# eg. omarchy-refresh-config hypr/hyprlock.conf will refresh ~/.config/hypr/hyprlock.conf
-omarchy-refresh-config <config-file>
+# eg. `omarchy refresh config hypr/hyprlock.conf` will refresh ~/.config/hypr/hyprlock.conf
+omarchy refresh config <config-file>
 
 # Full reinstall of configs (nuclear option)
-omarchy-reinstall
+omarchy reinstall
 ```
 
 ## Decision Framework
@@ -378,11 +386,11 @@ This creates a new migration file and outputs its path without opening an editor
 
 ## Example Requests
 
-- "Change my theme to catppuccin" -> `omarchy-theme-set catppuccin`
+- "Change my theme to catppuccin" -> `omarchy theme set catppuccin`
 - "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, add `unbind` if needed, then add `bind` in `~/.config/hypr/bindings.conf`
 - "Configure my external monitor" -> Edit `~/.config/hypr/monitors.conf`
 - "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.conf`
-- "Set up night light to turn on at sunset" -> `omarchy-toggle-nightlight` or edit `~/.config/hypr/hyprsunset.conf`
+- "Set up night light to turn on at sunset" -> `omarchy toggle nightlight` or edit `~/.config/hypr/hyprsunset.conf`
 - "Customize the catppuccin theme colors" -> Create `~/.config/omarchy/themes/catppuccin-custom/` by copying from stock, then edit
 - "Run a script every time I change themes" -> Create `~/.config/omarchy/hooks/theme-set`
-- "Reset waybar to defaults" -> `omarchy-refresh-waybar`
+- "Reset waybar to defaults" -> `omarchy refresh waybar`

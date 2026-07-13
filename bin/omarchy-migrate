@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# omarchy:summary=Run all pending migrations to bring the system in line with the installed version.
 OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
 OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
 
@@ -12,7 +13,6 @@ is_arch_only_migration() {
   grep -Eq "\\bpacman\\b|\\byay\\b|\\bparu\\b|/etc/pacman|mkinitcpio|limine|pacman-key|omarchy-refresh-pacman|linux-asahi|install/config/hardware/(fix-fkeys|intel|nvidia|fix-surface-keyboard|fix-bcm43xx|fix-apple-t2|fix-apple-spi-keyboard|fix-apple-bcm43xx|fix-apple-bcm4360|fix-apple-suspend-nvme)\\.sh" "$file"
 }
 
-# Where we store an empty file for each migration that has already been performed.
 STATE_DIR="$HOME/.local/state/omarchy/migrations"
 mkdir -p "$STATE_DIR"
 

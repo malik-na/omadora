@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# omarchy:summary=Launch the default browser as determined by xdg-settings.
+# omarchy:args=[url]
 desktop_paths=(
   "$HOME/.local/share/applications"
   "$HOME/.nix-profile/share/applications"

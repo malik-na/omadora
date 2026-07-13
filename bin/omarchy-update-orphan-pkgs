@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# omarchy:summary=Remove orphaned system packages after updates
+# omarchy:requires-sudo=true
 if omarchy-cmd-missing pacman; then
   exit 0
 fi

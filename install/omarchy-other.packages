@@ -15,9 +15,6 @@ git
 grim
 gst-plugin-pipewire
 gtk4-layer-shell
-htop
-intltool
-iwd
 jdk-openjdk
 libpulse
 libsass
@@ -45,7 +42,6 @@ qalculate
 snapper
 #thermald (x86_64-only, installed conditionally via install/config/hardware/intel/thermald.sh)
 webp-pixbuf-loader
-wget
 yay-debug
 yt6801-dkms
 zram-generator

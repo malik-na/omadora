@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# omarchy:summary=Reinstall Omarchy packages and reset default configs
+# omarchy:requires-sudo=true
+
 set -e
 
 if [ "$EUID" -eq 0 ]; then

@@ -150,6 +150,7 @@ show_capture_menu() {
   case "$(menu "Capture" $'  Screenshot\n  Screenrecord\n󰃉  Color')" in
   *Screenshot*) show_screenshot_menu ;;
   *Screenrecord*) show_screenrecord_menu ;;
+  *Text*) omarchy-capture-text-extraction ;;
   *Color*) pkill hyprpicker || hyprpicker -a ;;
   *) show_trigger_menu ;;
   esac
@@ -164,7 +165,7 @@ show_screenshot_menu() {
 }
 
 show_screenrecord_menu() {
-  omarchy-cmd-screenrecord --stop-recording && exit 0
+  omarchy-capture-screenrecording --stop-recording && exit 0
 
   case $(menu "Screenrecord" $'  With desktop audio\n  With desktop + microphone audio\n  With desktop + microphone audio + webcam') in
   *"With desktop audio") omarchy-cmd-screenrecord --with-desktop-audio ;;
@@ -188,17 +189,20 @@ show_toggle_menu() {
   *Screensaver*) omarchy-toggle-screensaver ;;
   *Nightlight*) omarchy-toggle-nightlight ;;
   *Idle*) omarchy-toggle-idle ;;
+  *Notifications*) omarchy-toggle-notification-silencing ;;
   *Bar*) omarchy-toggle-waybar ;;
   *Layout*) omarchy-hyprland-workspace-layout-toggle ;;
   *Ratio*) omarchy-hyprland-window-single-square-aspect-toggle ;;
   *Gaps*) omarchy-hyprland-window-gaps-toggle ;;
   *Scaling*) omarchy-hyprland-monitor-scaling-cycle ;;
+  *"Direct Boot"*) present_terminal omarchy-config-direct-boot ;;
+  *"Passwordless Sudo"*) present_terminal omarchy-sudo-passwordless ;;
   *) back_to show_trigger_menu ;;
   esac
 }
 
 show_hardware_menu() {
-  local options="󰛧  Laptop Display"
+  local options="󰛧  Laptop Display\n 󰍹  Mirror Display"
 
   if omarchy-hw-hybrid-gpu; then
     options="$options\n  Hybrid GPU"
@@ -208,9 +212,15 @@ show_hardware_menu() {
     options="$options\n󰟸  Touchpad"
   fi
 
+  if omarchy-hw-touchscreen; then
+    options="$options\n󰆽  Touchscreen"
+  fi
+
   case $(menu "Toggle" "$options") in
   *Laptop*) omarchy-hyprland-monitor-internal toggle ;;
+  *Mirror*) omarchy-hyprland-monitor-internal-mirror toggle;;
   *Touchpad*) omarchy-toggle-touchpad ;;
+  *Touchscreen*) omarchy-toggle-touchscreen ;;
   *"Hybrid GPU"*) present_terminal omarchy-toggle-hybrid-gpu ;;
   *) back_to show_trigger_menu ;;
   esac
@@ -219,6 +229,7 @@ show_hardware_menu() {
 show_style_menu() {
   case "$(menu "Style" $'󰸌  Theme\n  Font\n  Background\n  Hyprland\n󱄄  Screensaver\n  About')" in
   *Theme*) show_theme_menu ;;
+  *Unlock*) omarchy-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400 ;;
   *Font*) show_font_menu ;;
   *Background*) show_background_menu ;;
   *Hyprland*) open_in_editor ~/.config/hypr/looknfeel.conf ;;
@@ -368,8 +379,8 @@ show_install_terminal_menu() {
 show_install_ai_menu() {
   local ollama_pkg
   ollama_pkg=$(
-    (command -v nvidia-smi &>/dev/null && echo ollama-cuda) ||
-      (command -v rocminfo &>/dev/null && echo ollama-rocm) ||
+    (omarchy-cmd-present nvidia-smi && echo ollama-cuda) ||
+      (omarchy-cmd-present rocminfo && echo ollama-rocm) ||
       echo ollama
   )
 
@@ -411,7 +422,7 @@ show_install_font_menu() {
   *Meslo*) install_font "Meslo LG Mono" "ttf-meslo-nerd" "MesloLGL Nerd Font" ;;
   *Fira*) install_font "Fira Code" "ttf-firacode-nerd" "FiraCode Nerd Font" ;;
   *Victor*) install_font "Victor Code" "ttf-victor-mono-nerd" "VictorMono Nerd Font" ;;
-  *Bistream*) install_font "Bistream Vera Code" "ttf-bitstream-vera-mono-nerd" "BitstromWera Nerd Font" ;;
+  *Bitstream*) install_font "Bitstream Vera Code" "ttf-bitstream-vera-mono-nerd" "BitstromWera Nerd Font" ;;
   *Iosevka*) install_font "Iosevka" "ttf-iosevka-nerd" "Iosevka Nerd Font Mono" ;;
   *) show_install_menu ;;
   esac

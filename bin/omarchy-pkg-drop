@@ -1,9 +1,16 @@
 #!/bin/bash
 
-# Remove all the named packages from the system if they're installed (otherwise ignore).
+# omarchy:summary=Remove all the named packages from the system if they're installed (otherwise ignore).
+# omarchy:args=<packages...>
+# omarchy:requires-sudo=true
 
+installed=()
 for pkg in "$@"; do
   if rpm -q "$pkg" &>/dev/null; then
     sudo dnf remove -y "$pkg"
   fi
 done
+
+if (( ${#installed[@]} > 0 )); then
+  sudo pacman -Rns --noconfirm "${installed[@]}"
+fi

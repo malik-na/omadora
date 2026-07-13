@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# omarchy:summary=Toggle hypridle idle locking
 if ! command -v hypridle >/dev/null 2>&1; then
   notify-send "Idle" "hypridle is not installed."
   exit 1
