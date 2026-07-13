@@ -19,13 +19,15 @@ Manage Omarchy Mac Fedora systems on Fedora Asahi Remix Minimal (aarch64/Apple S
 
 This skill is for the Omarchy Mac Fedora fork and assumes:
 
-- Fedora Asahi Remix Minimal
+- Fedora Asahi Remix Minimal, **release 44 or newer**
 - Apple Silicon (M1/M2/M3/M4) running `aarch64`
 - Omarchy Mac Fedora installed from `malik-na/omarchy-mac-fedora`
 
 Unsupported targets for this skill:
 - Arch / ALARM-based Omarchy installs
 - Non-Asahi Fedora installs
+- **Fedora Asahi Remix 43 and older** - the installer and `omarchy-update` both refuse to run and
+  print the upgrade instructions; the user must upgrade Fedora first
 - `x86_64` hosts
 
 This skill is for end-user customization on installed systems.
@@ -95,7 +97,9 @@ Omarchy Mac Fedora is built on:
 
 ## Command Discovery
 
-Omarchy Mac Fedora provides ~145 commands following `omarchy-<category>-<action>` pattern.
+Omarchy Mac Fedora provides just over 300 commands following the `omarchy-<category>-<action>` pattern.
+Command names do change between releases - when in doubt, list them (`omarchy commands`) rather than
+trusting a name from memory.
 
 ```bash
 # List every documented command and its summary
@@ -126,7 +130,9 @@ cat $(which omarchy-theme-set)
 | `omarchy-theme-*` | Theme management | `omarchy-theme-set <name>` |
 | `omarchy-install-*` | Install optional software | `omarchy-install-docker-dbs` |
 | `omarchy-launch-*` | Launch apps | `omarchy-launch-browser` |
-| `omarchy-cmd-*` | System commands | `omarchy-cmd-screenshot` |
+| `omarchy-capture-*` | Screenshots, screen recording, text extraction | `omarchy-capture-screenshot` |
+| `omarchy-system-*` | Lock, shutdown, reboot | `omarchy-system-lock` |
+| `omarchy-cmd-*` | Internal helpers other commands call | `omarchy-cmd-present <name>` |
 | `omarchy-pkg-*` | Package management (dnf-backed) | `omarchy-pkg-install <pkg>` |
 | `omarchy-setup-*` | Initial setup tasks | `omarchy-setup-fingerprint` |
 | `omarchy-update-*` | System updates | `omarchy-update` |
@@ -328,7 +334,7 @@ omarchy font set <name>         # Change font
 omarchy-update                  # Full system update
 omarchy-version                 # Show Omarchy Mac Fedora version
 omarchy-debug --no-sudo --print # Debug info (ALWAYS use these flags)
-omarchy-lock-screen             # Lock screen
+omarchy-system-lock             # Lock screen
 omarchy-system-shutdown         # Shutdown
 omarchy-system-reboot           # Reboot
 ```
@@ -352,9 +358,13 @@ omarchy refresh <app>
 # eg. `omarchy refresh config hypr/hyprlock.conf` will refresh ~/.config/hypr/hyprlock.conf
 omarchy refresh config <config-file>
 
-# Full reinstall of configs (nuclear option)
-omarchy reinstall
+# Reset every config to the shipped defaults (destructive: all config edits are lost)
+omarchy reinstall-configs
 ```
+
+[WARNING] Do not reach for `omarchy reinstall`. It re-clones the Omarchy source from a hardcoded
+repository that is **not** this project (`malik-na/omarchy-mac`), so it replaces a working install
+with a different one. `omarchy reinstall-configs` resets the configs without touching the source.
 
 ## Decision Framework
 
