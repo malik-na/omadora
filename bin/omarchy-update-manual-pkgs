@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# omarchy:summary=Rebuild the packages Fedora does not ship, when their pinned version changed
+# omarchy:summary=Update everything dnf cannot: Flatpak apps and the packages built from source
 # omarchy:requires-sudo=true
 
-# Walker, Elephant and the cargo-installed TUIs (impala, wiremix) are not in Fedora or in any COPR -
-# they are built from source at install time, so a plain `dnf upgrade` can never move them. Without
-# this step an existing install would keep whatever it was first built with, while the shipped configs
-# move on with Omarchy.
+# On Arch, `yay -Sua` sweeps up everything outside the distro's repositories. This is the Fedora
+# equivalent, and it covers the two things a plain `dnf upgrade` can never move:
 #
-# Both helpers are version-aware: they exit immediately when the installed build already matches the
-# pinned version, so this costs nothing on a normal update.
+#   Flatpak apps      - Typora and LocalSend are not in Fedora, so the port installs them from
+#                       Flathub. Upstream gets them from the AUR and updates them with the rest;
+#                       here, nothing was updating them at all.
+#   Source builds     - walker, elephant and the cargo TUIs are compiled at install time. Both
+#                       helpers are version-aware and exit immediately when the installed build
+#                       already matches the pin, so a normal update pays almost nothing for this.
 
 OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
 OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
@@ -18,6 +20,11 @@ source "$OMARCHY_INSTALL/helpers/distro.sh"
 
 if ! is_fedora; then
   exit 0
+fi
+
+if command -v flatpak >/dev/null 2>&1 && [[ -n "$(flatpak list --app --columns=application 2>/dev/null)" ]]; then
+  echo -e "\e[32m\nUpdate Flatpak apps\e[0m"
+  flatpak update -y || echo "[WARNING] Flatpak update failed - continuing"
 fi
 
 stamp="$HOME/.local/state/omarchy/walker-elephant-version"

@@ -78,7 +78,7 @@ deserve a second look.
 | `mise` (runtime manager) | <https://mise.jdx.dev/install.sh> | **piped to a shell** |
 | `uv` (Python tooling) | <https://astral.sh/uv/install.sh> | **piped to a shell**, upstream Omarchy's own step |
 | `cliamp` (music TUI, optional) | <https://github.com/bjarneo/cliamp> | **piped to a shell**, pinned to tag `v1.57.1`, non-fatal on failure |
-| `lazydocker` | GitHub releases (`jesseduffield/lazydocker`) | latest release tarball |
+| `lazydocker` | `nclundell/fedora-extras` COPR (package), GitHub release only as fallback | it used to come from GitHub as a loose binary in `/usr/local/bin`, which nothing ever updated |
 | `gum` (installer UI) | Fedora, with a GitHub release as fallback | dnf first. The old code went to GitHub first, with a pinned asset that no longer exists - every install started with a 404 and ran with no UI. |
 | 1Password | <https://downloads.1password.com/linux/tar/stable/aarch64/> | only via `omarchy-install-1password` |
 | LazyVim starter config | <https://github.com/LazyVim/starter> | `omarchy-lazyvim-setup` |
@@ -98,7 +98,21 @@ deserve a second look.
 | npm registry, via `omarchy-npx-install` wrappers | `@openai/codex`, `@google/gemini-cli`, `@github/copilot`, `@earendil-works/pi-coding-agent`, `@kitlangton/ghui`, `playwright` |
 | pip (`--user`) | `terminaltexteffects` (install animations) |
 
-## 7. [WARNING] Sources that point at the wrong project
+## 7. How each source gets updated
+
+`omarchy-update` runs `dnf upgrade`, then the migrations, then `omarchy-update-manual-pkgs`, which
+covers what dnf cannot reach:
+
+| Source | Updated by |
+|---|---|
+| Fedora repos and every COPR | `dnf upgrade` |
+| Flatpak apps (Typora, LocalSend) | `flatpak update`, in `omarchy-update-manual-pkgs`. Upstream gets these from the AUR, so `yay -Sua` swept them up; on Fedora nothing was updating them at all until this step existed. |
+| walker, elephant, impala, wiremix | rebuilt by `omarchy-update-manual-pkgs`, but **only when their pinned version changes** - a source build is invisible to every package manager, so the pin in the repo is what moves them |
+| npx-wrapped npm tools (codex, gemini, copilot, pi, ghui, playwright) | each run resolves the package fresh (`npx --prefer-online`), so they self-update |
+| mise runtimes (node, bun, deno, zls) | **not updated automatically.** `mise use -g <tool>@latest` re-resolves when run by hand. |
+| `uv`, `terminaltexteffects` (pip), 1Password, LazyVim starter | **not updated automatically** - they are installed once |
+
+## 8. [WARNING] Sources that point at the wrong project
 
 Found while testing the installer end to end. Both predate the Fedora 44 work and are listed here
 rather than quietly changed:
@@ -109,7 +123,7 @@ rather than quietly changed:
   `$OMARCHY_PATH`. That is upstream's Arch tree: pacman package lists, no `.fedora` lists, no dnf
   helpers. On a Fedora machine it replaces a working install with one that cannot work.
 
-## 8. What this repository does *not* use
+## 9. What this repository does *not* use
 
 No AUR, no `pacman`/`yay`/`paru`, no `mkinitcpio`, no `limine` - those are upstream Omarchy's, and
 every path here goes through `dnf`, `rpm` and COPR instead. Boot and initramfs are `dracut` and

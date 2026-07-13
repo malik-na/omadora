@@ -58,6 +58,7 @@ gh
 moby-engine
 docker-compose
 docker-buildx
+lazydocker
 
 # Media & Apps
 imv
