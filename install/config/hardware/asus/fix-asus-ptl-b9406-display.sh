@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Display fix for ASUS ExpertBook B9406 (Panther Lake / Xe3 iGPU).
 #
 # Panel Replay is Xe3-new, default-on in the xe driver, and has a broken

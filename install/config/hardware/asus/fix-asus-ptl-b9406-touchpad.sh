@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Touchpad quirks for ASUS ExpertBook B9406 (Pixart 093A:4F05 on i2c-hid).
 #
 # The kernel produces perfect Precision Touchpad reports but libinput's

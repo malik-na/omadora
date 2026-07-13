@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Display backlight fix for ASUS Panther Lake / Xe3 iGPU laptops.
 # Enabled only for ExpertBook B9406 and Zenbook UX5406AA for now.
 # Other models need confirmation whether the issue exists there too.

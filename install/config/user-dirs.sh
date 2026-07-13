@@ -1,3 +1,5 @@
+#!/bin/bash
+
 mkdir -p ~/Downloads ~/Pictures ~/Videos ~/.config/gtk-3.0
 
 xdg-user-dirs-update --set TEMPLATES "$HOME"

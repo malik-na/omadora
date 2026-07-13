@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Fix disable-while-typing on ASUS ROG Flow Z13 detachable keyboard.
 #
 # The Z13's detachable keyboard touchpad is detected as external by udev,

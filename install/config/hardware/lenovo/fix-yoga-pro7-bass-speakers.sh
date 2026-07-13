@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Fix bass speakers on Lenovo Yoga Pro 7 14IAH10
 # The ALC287 codec needs a pin quirk to route audio to both AMP speakers.
 # Without this quirk, only one speaker works and bass output is missing.
