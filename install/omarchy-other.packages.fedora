@@ -8,20 +8,23 @@ autoconf-archive
 btrfs-progs
 egl-wayland
 git
-gst-plugin-pipewire
+pipewire-gstreamer
 gtk4-layer-shell
 htop
 intltool
 iwd
-java-21-openjdk
 pulseaudio-libs-devel
 sassc
 snapper
-webp-pixbuf-loader
-wget
+glycin-loaders
+wget2-wget
 zram-generator
 
 # Omitted/handled by Fedora:
+# - webp-pixbuf-loader: retired in Fedora 44. gdk-pixbuf2 carries an Obsoletes tag for it, so the
+#   name still resolves, but nothing in Fedora 44 ships a webp gdk-pixbuf loader (the only loader
+#   left is libpixbufloader-xpm.so). Image decoding for GTK4 apps moved to glycin, so glycin-loaders
+#   above is the replacement that actually renders webp.
 # - base, base-devel: replaced by @development-tools
 # - dkms: not needed for most ARM64 hardware on Fedora Asahi
 # - pipewire, pipewire-alsa, pipewire-jack, pipewire-pulse: pre-installed

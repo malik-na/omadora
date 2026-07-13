@@ -9,19 +9,21 @@ if ! is_fedora; then
   exit 0
 fi
 
-# List of required COPR repos (from Research.md)
+# Required COPR repos: the install cannot proceed without these
 COPR_REPOS=(
   "lionheartp/Hyprland"
   "atim/starship"
   "atim/lazygit"
-  "pgdev/ghostty"
 )
 
 # Optional COPR repos (may not be available for all Fedora versions)
+# scottames/ghostty is only needed by `omarchy-install-terminal ghostty`; the default
+# terminal is alacritty, so a missing ghostty must never fail the install.
 OPTIONAL_COPR_REPOS=(
   "solopasha/hyprland"
   "nclundell/fedora-extras"
   "erikreider/swayosd"
+  "scottames/ghostty"
 )
 
 echo "Enabling required COPR repositories..."
@@ -31,6 +33,7 @@ for repo in "${COPR_REPOS[@]}"; do
     echo "✓ Successfully enabled: $repo"
   else
     echo "✗ Failed to enable: $repo (required)"
+    echo "  No usable chroot for Fedora $(fedora_version) $(uname -m), or the COPR project is gone."
     exit 1
   fi
 done
@@ -48,37 +51,15 @@ done
 echo "COPR repositories enabled."
 
 # -------------------------------------------------------------
-# HYPRLAND REPOSITORY PROTECTION 
+# HYPRLAND REPOSITORY PROTECTION
 # Lionheartp must provide Hyprland core to keep Asahi compat.
 # Solopasha is used only as fallback for utilities (e.g. satty).
 # -------------------------------------------------------------
-LIONHEARTP_REPO_FILE="/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:lionheartp:Hyprland.repo"
-SOLOPASHA_REPO_FILE="/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:solopasha:hyprland.repo"
-LIONHEARTP_EXCLUDE_LINE="exclude=gtk4* gtk3* pango* cairo*"
+source "$OMARCHY_INSTALL/helpers/fedora-copr-protect.sh"
 
 echo "Applying repo protections for Hyprland stability..."
-
-if [[ -f "$SOLOPASHA_REPO_FILE" ]]; then
-  # Remove any existing protections to recreate them clean
-  sudo sed -i '/^priority=/d' "$SOLOPASHA_REPO_FILE"
-  sudo sed -i '/^excludepkgs=/d' "$SOLOPASHA_REPO_FILE"
-  
-  # Inject protections: drop priority, and never pull core packages from here
-  # NOTE: hyprland-qtutils is deliberately NOT excluded so we can fetch it here
-  echo "priority=90" | sudo tee -a "$SOLOPASHA_REPO_FILE" >/dev/null
-  echo "excludepkgs=hyprland hyprland-devel hyprlock hypridle hyprsunset hyprpicker hyprwire aquamarine hyprgraphics hyprutils hyprlang hyprcursor xdg-desktop-portal-hyprland uwsm" | sudo tee -a "$SOLOPASHA_REPO_FILE" >/dev/null
-  echo "✓ Solopasha repo limits applied."
-fi
-
-if [[ -f "$LIONHEARTP_REPO_FILE" ]]; then
-  sudo sed -i '/^priority=/d' "$LIONHEARTP_REPO_FILE"
-  sudo sed -i '/^[[:space:]]*exclude=/d' "$LIONHEARTP_REPO_FILE"
-  
-  # Boost priority for the Asahi safe build
-  echo "priority=10" | sudo tee -a "$LIONHEARTP_REPO_FILE" >/dev/null
-  echo "$LIONHEARTP_EXCLUDE_LINE" | sudo tee -a "$LIONHEARTP_REPO_FILE" >/dev/null
-  echo "✓ Lionheartp repo priority applied."
-fi
+fedora_remove_dead_copr_repos
+fedora_apply_copr_protections
 
 echo "Running Fedora package reconciliation after COPR setup..."
 if [[ "${OMARCHY_DRY_RUN:-0}" == "1" ]]; then

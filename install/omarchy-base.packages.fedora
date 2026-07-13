@@ -21,9 +21,9 @@ xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 xdg-user-dirs
 qt5-qtwayland
+mesa-vulkan-drivers
 chromium
 yaru-icon-theme
-yaru-gtk2-theme
 yaru-gtk3-theme
 yaru-gtk4-theme
 yaru-gtksourceview-theme
@@ -50,7 +50,7 @@ git
 cargo
 clang
 llvm
-java-21-openjdk
+java-latest-openjdk
 luarocks
 gh
 
@@ -88,6 +88,7 @@ btrfs-assistant
 python3-dnf-plugin-snapper
 inotify-tools
 ImageMagick
+socat
 firewalld
 python3-pip
 flatpak
