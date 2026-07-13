@@ -79,9 +79,13 @@ if ! grep -q "asahi" /proc/version 2>/dev/null; then
 fi
 
 echo -e "\n🐧 Detected: \e[34mFedora Asahi Remix $FEDORA_VERSION\e[0m"
-OMARCHY_BRANCH="${OMARCHY_REF:-fedora}"
 
-echo -e "\n📦 Installing Omarchy for: \e[32m$OMARCHY_BRANCH\e[0m"
+# No default branch. This used to be `fedora`, a branch the repository does not have, so a boot.sh run
+# that did not set OMARCHY_REF died on the clone. Cloning without -b takes whatever the repository's own
+# default branch is, which is also what survives the maintainer renaming it.
+OMARCHY_BRANCH="${OMARCHY_REF:-}"
+
+echo -e "\n📦 Installing Omarchy for: \e[32m${OMARCHY_BRANCH:-the default branch}\e[0m"
 
 
 # ============================================================================
@@ -99,7 +103,7 @@ sudo dnf install -y git
 # Use custom repo if specified, otherwise default to malik-na/omarchy-mac-fedora
 OMARCHY_REPO="${OMARCHY_REPO:-malik-na/omarchy-mac-fedora}"
 
-echo -e "\nCloning Omarchy from: https://github.com/${OMARCHY_REPO}.git (branch: $OMARCHY_BRANCH)"
+echo -e "\nCloning Omarchy from: https://github.com/${OMARCHY_REPO}.git (branch: ${OMARCHY_BRANCH:-default})"
 
 # Warn if existing installation will be overwritten
 if [[ -d ~/.local/share/omarchy ]]; then
@@ -116,7 +120,11 @@ if [[ -d ~/.local/share/omarchy ]]; then
 fi
 
 rm -rf ~/.local/share/omarchy/
-git clone -b "$OMARCHY_BRANCH" "https://github.com/${OMARCHY_REPO}.git" ~/.local/share/omarchy >/dev/null
+if [[ -n "$OMARCHY_BRANCH" ]]; then
+  git clone -b "$OMARCHY_BRANCH" "https://github.com/${OMARCHY_REPO}.git" ~/.local/share/omarchy >/dev/null
+else
+  git clone "https://github.com/${OMARCHY_REPO}.git" ~/.local/share/omarchy >/dev/null
+fi
 
 echo -e "\nInstallation starting..."
 bash ~/.local/share/omarchy/install.sh
