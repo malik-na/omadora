@@ -34,8 +34,10 @@ ensure_bin_runtime() {
 
   if [[ \$shebang == "#!"*"/bun"* || \$shebang == "#!"*"/env bun"* ]]; then
     if omarchy-cmd-missing bun; then
+      # bun is not a Fedora package and is in no COPR - it is a mise-managed runtime, the same way
+      # omarchy-install-dev-env installs it. Routing it through dnf would just fail here.
       echo "Installing bun runtime for \$package..."
-      omarchy-pkg-add bun
+      mise use -g bun@latest
       hash -r
     fi
   fi
