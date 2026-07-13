@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# omarchy:summary=Prints the upower device path of the system battery.
+# omarchy:hidden=true
+
+# Apple Silicon has no BAT0. The kernel calls the battery macsmc-battery and upower exposes it as
+# battery_macsmc_battery, so matching on the BAT name that x86 laptops happen to use finds nothing at
+# all on a Mac. Every upower battery device carries the battery_ prefix, whatever the kernel named it,
+# so that is what to match on.
+
+upower -e | grep '/battery_' | head -1

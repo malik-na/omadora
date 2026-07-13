@@ -2,7 +2,10 @@
 
 # omarchy:summary=Returns a formatted battery status string with percentage and power draw/charge.
 
-battery_info=$(upower -i $(upower -e | grep BAT))
+battery_device=$(omarchy-battery-device)
+[[ -n $battery_device ]] || exit 0
+
+battery_info=$(upower -i "$battery_device")
 
 percentage=$(echo "$battery_info" | awk '/percentage/ {
     print int($2)

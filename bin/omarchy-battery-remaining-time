@@ -2,7 +2,10 @@
 
 # omarchy:summary=Returns the battery time remaining (to empty or full) in a compact format.
 
-battery_info=$(upower -i $(upower -e | grep BAT))
+battery_device=$(omarchy-battery-device)
+[[ -n $battery_device ]] || exit 0
+
+battery_info=$(upower -i "$battery_device")
 
 echo "$battery_info" | awk '/time to (empty|full)/ {
     value = $4
