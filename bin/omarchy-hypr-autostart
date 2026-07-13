@@ -58,6 +58,6 @@ if command -v waybar >/dev/null 2>&1 && ! pgrep -x waybar >/dev/null 2>&1; then
   launch_uwsm waybar
 fi
 
-if command -v omarchy-lock-screen >/dev/null 2>&1; then
-  setsid bash -lc 'sleep 1; omarchy-lock-screen' >/dev/null 2>&1 &
+if command -v omarchy-system-lock >/dev/null 2>&1; then
+  setsid bash -lc 'sleep 1; omarchy-system-lock' >/dev/null 2>&1 &
 fi

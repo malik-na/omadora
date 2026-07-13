@@ -194,8 +194,8 @@ show_capture_menu() {
 
 show_screenshot_menu() {
   case $(menu "Screenshot" $'  Snap with Editing\n  Straight to Clipboard') in
-  *Editing*) omarchy-cmd-screenshot smart ;;
-  *Clipboard*) omarchy-cmd-screenshot smart clipboard ;;
+  *Editing*) omarchy-capture-screenshot smart ;;
+  *Clipboard*) omarchy-capture-screenshot smart copy ;;
   *) show_capture_menu ;;
   esac
 }
@@ -213,9 +213,9 @@ show_screenrecord_menu() {
 
 show_share_menu() {
   case $(menu "Share" $'  Clipboard\n  File \n  Folder') in
-  *Clipboard*) omarchy-cmd-share clipboard ;;
-  *File*) terminal bash -c "omarchy-cmd-share file" ;;
-  *Folder*) terminal bash -c "omarchy-cmd-share folder" ;;
+  *Clipboard*) omarchy-menu-share clipboard ;;
+  *File*) terminal bash -c "omarchy-menu-share file" ;;
+  *Folder*) terminal bash -c "omarchy-menu-share folder" ;;
   *) back_to show_trigger_menu ;;
   esac
 }
@@ -485,7 +485,7 @@ show_install_ai_menu() {
 show_install_gaming_menu() {
   case $(menu "Install" $'  Steam\n  RetroArch\n󰍳  Minecraft\n󰖺  Xbox Controller') in
   *Steam*) present_terminal omarchy-install-steam ;;
-  *GeForce*) present_terminal omarchy-install-geforce-now ;;
+  *GeForce*) present_terminal omarchy-install-gaming-geforce-now ;;
   *RetroArch*) aur_install_and_launch "RetroArch" "retroarch retroarch-assets libretro libretro-fbneo" "com.libretro.RetroArch.desktop" ;;
   *Minecraft*) aur_install_and_launch "Minecraft" "minecraft-launcher" "minecraft-launcher" ;;
   *Xbox*) present_terminal omarchy-install-xbox-controllers ;;
@@ -635,7 +635,7 @@ show_update_hardware_menu() {
 
 show_update_password_menu() {
   case "$(menu "Update Password" $'  Drive Encryption\n  User')" in
-  *Drive*) present_terminal omarchy-drive-set-password ;;
+  *Drive*) present_terminal omarchy-drive-password ;;
   *User*) present_terminal passwd ;;
   *) show_update_menu ;;
   esac
@@ -648,7 +648,7 @@ show_about() {
 show_system_menu() {
   case $(menu "System" $'󰌾  Logout\n󰌾  Lock\n󱄄  Screensaver\n󰤄  Suspend\n󰜉  Restart\n󰐥  Shutdown') in
   *Logout*) omarchy-system-logout ;;
-  *Lock*) omarchy-lock-screen ;;
+  *Lock*) omarchy-system-lock ;;
   *Screensaver*) omarchy-launch-screensaver force ;;
   *Suspend*) systemctl suspend ;;
   *Restart*) omarchy-cmd-reboot ;;

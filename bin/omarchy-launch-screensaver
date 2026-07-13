@@ -7,7 +7,7 @@ if ! command -v tte &>/dev/null; then
   if [[ -x "$HOME/.local/bin/tte" ]]; then
     export PATH="$HOME/.local/bin:$PATH"
   else
-    exec omarchy-lock-screen
+    exec omarchy-system-lock
   fi
 fi
 
