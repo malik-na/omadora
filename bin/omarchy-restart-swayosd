@@ -3,4 +3,8 @@
 # omarchy:summary=Restart the SwayOSD server
 command -v swayosd-server >/dev/null 2>&1 || exit 0
 
-omarchy-restart-app swayosd-server
+systemctl --user daemon-reload
+systemctl --user stop swayosd-server.service || true
+pkill -x swayosd-server || true
+systemctl --user reset-failed swayosd-server.service || true
+systemctl --user enable --now swayosd-server.service

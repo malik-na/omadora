@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Lock the screen
+# omarchy:summary=Lock the computer and turn off the display
 # omarchy:group=system
 # omarchy:name=lock
 # omarchy:examples=omarchy system lock
@@ -26,3 +26,12 @@ fi
 
 # Avoid running screensaver when locked
 pkill -f org.omarchy.screensaver
+
+if [[ ${OMARCHY_LOCK_ONLY:-false} != "true" ]]; then
+  (
+    sleep 3
+    pidof hyprlock >/dev/null || exit 0
+    omarchy-brightness-keyboard off
+    omarchy-brightness-display off
+  ) &
+fi

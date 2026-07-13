@@ -139,11 +139,47 @@ show_learn_menu() {
 show_trigger_menu() {
   case "$(menu "Trigger" $'  Capture\n  Share\n󰔎  Toggle')" in
   *Capture*) show_capture_menu ;;
+  *Transcode*) omarchy-transcode || back_to show_trigger_menu ;;
   *Share*) show_share_menu ;;
   *Toggle*) show_toggle_menu ;;
   *Hardware*) show_hardware_menu ;;
   *) show_main_menu ;;
   esac
+}
+
+show_reminder_menu() {
+  case $(menu "Reminder" "󰔛  Set one\n󰔛  Show all\n󰔛  Clear all") in
+  *Set*) show_custom_reminder_input ;;
+  *"Show all"*) omarchy-reminder show ;;
+  *"Clear all"*) omarchy-reminder clear ;;
+  *) back_to show_trigger_menu ;;
+  esac
+}
+
+show_custom_reminder_input() {
+  local minutes
+  minutes=$(omarchy-menu-input "Remind in minutes")
+
+  if [[ $minutes =~ ^[0-9]+$ ]] && ((minutes > 0)); then
+    show_reminder_message_input "$minutes"
+  elif [[ -n $minutes ]]; then
+    omarchy-notification-send "󰔛" "Invalid reminder" "Enter the number of minutes" -u critical
+    show_custom_reminder_input
+  else
+    back_to show_reminder_menu
+  fi
+}
+
+show_reminder_message_input() {
+  local minutes="$1"
+  local message
+  message=$(omarchy-menu-input "Reminder message")
+
+  if [[ -n $message ]]; then
+    omarchy-reminder "$minutes" "$message"
+  else
+    omarchy-reminder "$minutes"
+  fi
 }
 
 show_capture_menu() {
@@ -212,18 +248,34 @@ show_hardware_menu() {
     options="$options\n󰟸  Touchpad"
   fi
 
+  if omarchy-hw-dell-xps-haptic-touchpad && omarchy-cmd-present dell-xps-touchpad-haptics; then
+    options="$options\n󰌌  Touchpad Haptics"
+  fi
+
   if omarchy-hw-touchscreen; then
     options="$options\n󰆽  Touchscreen"
   fi
 
   case $(menu "Toggle" "$options") in
   *Laptop*) omarchy-hyprland-monitor-internal toggle ;;
-  *Mirror*) omarchy-hyprland-monitor-internal-mirror toggle;;
+  *Mirror*) omarchy-hyprland-monitor-internal-mirror toggle ;;
+  *Haptics*) show_hardware_touchpad_haptics_menu ;;
   *Touchpad*) omarchy-toggle-touchpad ;;
   *Touchscreen*) omarchy-toggle-touchscreen ;;
   *"Hybrid GPU"*) present_terminal omarchy-toggle-hybrid-gpu ;;
   *) back_to show_trigger_menu ;;
   esac
+}
+
+show_hardware_touchpad_haptics_menu() {
+  local current=$(dell-xps-touchpad-haptics get)
+  local selected=$(menu "Touchpad Haptics" "low\nmid\nhigh" "" "$current")
+
+  if [[ -n $selected ]]; then
+    dell-xps-touchpad-haptics set "$selected"
+  else
+    back_to show_hardware_menu
+  fi
 }
 
 show_style_menu() {
@@ -233,9 +285,27 @@ show_style_menu() {
   *Font*) show_font_menu ;;
   *Background*) show_background_menu ;;
   *Hyprland*) open_in_editor ~/.config/hypr/looknfeel.conf ;;
-  *Screensaver*) open_in_editor ~/.config/omarchy/branding/screensaver.txt ;;
-  *About*) open_in_editor ~/.config/omarchy/branding/about.txt ;;
+  *Screensaver*) show_screensaver_menu ;;
+  *About*) show_about_menu ;;
   *) show_main_menu ;;
+  esac
+}
+
+show_about_menu() {
+  case $(menu "About" "  Edit Text\n  Set From Image\n  Restore Default") in
+  *Text*) omarchy-branding-about text ;;
+  *Image*) omarchy-branding-about image ;;
+  *Default*) omarchy-branding-about reset ;;
+  *) show_style_menu ;;
+  esac
+}
+
+show_screensaver_menu() {
+  case $(menu "Screensaver" "  Edit Text\n  Set From Image\n  Restore Default") in
+  *Text*) omarchy-branding-screensaver text ;;
+  *Image*) omarchy-branding-screensaver image ;;
+  *Default*) omarchy-branding-screensaver reset ;;
+  *) show_style_menu ;;
   esac
 }
 
@@ -338,9 +408,23 @@ show_install_menu() {
   *Development*) show_install_development_menu ;;
   *Editor*) show_install_editor_menu ;;
   *Terminal*) show_install_terminal_menu ;;
+  *Browser*) show_install_browser_menu ;;
+  *Gaming*) show_install_gaming_menu ;;
   *AI*) show_install_ai_menu ;;
   *Gaming*) show_install_gaming_menu ;;
   *) show_main_menu ;;
+  esac
+}
+
+show_install_browser_menu() {
+  case $(menu "Install" "  Chrome\n  Edge\n  Brave\n  Brave Origin\n  Firefox\n󰖟  Zen") in
+  *Chrome*) present_terminal "omarchy-install-browser chrome" ;;
+  *Edge*) present_terminal "omarchy-install-browser edge" ;;
+  *"Brave Origin"*) present_terminal "omarchy-install-browser brave-origin" ;;
+  *Brave*) present_terminal "omarchy-install-browser brave" ;;
+  *Firefox*) present_terminal "omarchy-install-browser firefox" ;;
+  *Zen*) present_terminal "omarchy-install-browser zen" ;;
+  *) show_install_menu ;;
   esac
 }
 
@@ -370,6 +454,7 @@ show_install_editor_menu() {
 show_install_terminal_menu() {
   case "$(menu "Install" $'  Alacritty\n  Ghostty\n  Kitty')" in
   *Alacritty*) install_terminal "alacritty" ;;
+  *Foot*) install_terminal "foot" ;;
   *Ghostty*) install_terminal "ghostty" ;;
   *Kitty*) install_terminal "kitty" ;;
   *) show_install_menu ;;
@@ -586,6 +671,8 @@ go_to_menu() {
   *toggle*) show_toggle_menu ;;
   *hardware*) show_hardware_menu ;;
   *share*) show_share_menu ;;
+  *reminder-set*) show_custom_reminder_input ;;
+  *reminder*) show_reminder_menu ;;
   *background*) show_background_menu ;;
   *capture*) show_capture_menu ;;
   *style*) show_style_menu ;;
