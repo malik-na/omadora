@@ -38,15 +38,37 @@ ensure_iwd_backend() {
     echo "[OK] NetworkManager already configured with wifi.backend=iwd"
   fi
 
-  sudo systemctl disable --now wpa_supplicant >/dev/null 2>&1 || true
-  sudo systemctl enable --now iwd >/dev/null 2>&1 || {
+  # From here on the machine's only network link is being swapped underneath it. If iwd does not come
+  # up, the config above would point NetworkManager at a backend that is not running - no Wi-Fi, on a
+  # laptop whose owner may have no other way back online. So every failure rolls back to the working
+  # wpa_supplicant setup instead of leaving the machine half-swapped.
+  rollback_to_wpa_supplicant() {
+    echo "[WARNING] Rolling back to the wpa_supplicant backend"
+    sudo rm -f "$backend_conf"
+    sudo systemctl disable --now iwd >/dev/null 2>&1 || true
+    sudo systemctl enable --now wpa_supplicant >/dev/null 2>&1 || true
+    sudo systemctl restart NetworkManager >/dev/null 2>&1 || true
+  }
+
+  if ! sudo systemctl enable --now iwd >/dev/null 2>&1; then
     echo "[WARN] Failed to enable iwd service"
+    rollback_to_wpa_supplicant
     return 1
-  }
-  sudo systemctl restart NetworkManager >/dev/null 2>&1 || {
+  fi
+
+  if ! systemctl is-active --quiet iwd; then
+    echo "[WARN] iwd did not start"
+    rollback_to_wpa_supplicant
+    return 1
+  fi
+
+  sudo systemctl disable --now wpa_supplicant >/dev/null 2>&1 || true
+
+  if ! sudo systemctl restart NetworkManager >/dev/null 2>&1; then
     echo "[WARN] Failed to restart NetworkManager"
+    rollback_to_wpa_supplicant
     return 1
-  }
+  fi
 
   echo "[OK] iwd backend finalized"
 }
