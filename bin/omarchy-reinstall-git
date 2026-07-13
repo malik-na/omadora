@@ -5,7 +5,17 @@
 set -e
 
 # Reinstall the Omarchy configuration directory from the git source.
+#
+# The source is the machine's own checkout, not a hardcoded URL. This used to clone basecamp/omarchy -
+# upstream's Arch tree - straight over $OMARCHY_PATH: pacman package lists, no .fedora lists, no dnf
+# helpers. On a Fedora machine that replaces a working install with one that cannot work. Deriving the
+# remote and the branch from the checkout also keeps a fork of this fork pointing at itself.
 
-git clone --depth=1 --branch master "https://github.com/basecamp/omarchy.git" ~/.local/share/omarchy-new >/dev/null
-mv $OMARCHY_PATH ~/.local/share/omarchy-old
-mv ~/.local/share/omarchy-new $OMARCHY_PATH
+repo_url="$(git -C "$OMARCHY_PATH" remote get-url origin)"
+branch="$(git -C "$OMARCHY_PATH" rev-parse --abbrev-ref HEAD)"
+
+echo "Reinstalling Omarchy from $repo_url ($branch)"
+
+git clone --depth=1 --branch "$branch" "$repo_url" ~/.local/share/omarchy-new >/dev/null
+mv "$OMARCHY_PATH" ~/.local/share/omarchy-old
+mv ~/.local/share/omarchy-new "$OMARCHY_PATH"
