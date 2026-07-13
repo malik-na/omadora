@@ -11,7 +11,7 @@
 #   case $(menu "System" "  Lock\n󰐥  Shutdown") in
 #   *Lock*) omarchy-system-lock ;;
 #   case $(menu "System" "  Lock\n󰐥  Shutdown") in
-#   *Lock*) omarchy-lock-screen ;;
+#   *Lock*) omarchy-system-lock ;;
 #   *Shutdown*) omarchy-system-shutdown ;;
 #   *) back_to show_main_menu ;;
 #   esac
