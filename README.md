@@ -144,6 +144,8 @@ bash install.sh
 
 The installer currently supports **Fedora Asahi Remix on aarch64 only**. Verify distro/architecture and rerun.
 
+On **Fedora Asahi Remix 43 or older** the installer, `omarchy-update` and `omarchy-migrate` all stop on purpose and print the upgrade steps. Upgrade Fedora to 44 first - see [Already on Fedora Asahi Remix 43?](#already-on-fedora-asahi-remix-43) above.
+
 ### Session launches but keybinds fail
 
 Run this to confirm Omarchy commands resolve in your login shell:
@@ -153,13 +155,12 @@ bash -lc 'echo "$PATH"'
 bash -lc 'command -v omarchy-menu omarchy-cmd-terminal-cwd uwsm-app'
 ```
 
-For implementation and runtime hardening details, see `FEDORA_ASAHI_PORTING_PLAN.md`.
-
 ---
 
 ## Update and maintenance
 
-- `Menu > Update > Omarchy` updates both the Omarchy repository and Fedora system packages (`dnf upgrade --refresh`).
+- `Menu > Update > Omarchy` pulls the Omarchy repository, runs any pending migrations, and updates Fedora packages (`dnf upgrade --refresh`).
+- It also covers what `dnf` cannot reach: the Flatpak apps (Typora, LocalSend), the packages built from source (walker and elephant, at their pinned versions), and the Rust TUIs installed with cargo. `DEPENDENCIES.md` lists every external source and the mechanism that updates it.
 - Waybar update indicators track git divergence from your configured upstream branch.
 
 Check branch/upstream state:
