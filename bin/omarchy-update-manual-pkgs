@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# omarchy:summary=Rebuild the packages Fedora does not ship, when their pinned version changed
+# omarchy:requires-sudo=true
+
+# Walker, Elephant and the cargo-installed TUIs (impala, wiremix) are not in Fedora or in any COPR -
+# they are built from source at install time, so a plain `dnf upgrade` can never move them. Without
+# this step an existing install would keep whatever it was first built with, while the shipped configs
+# move on with Omarchy.
+#
+# Both helpers are version-aware: they exit immediately when the installed build already matches the
+# pinned version, so this costs nothing on a normal update.
+
+OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
+
+source "$OMARCHY_INSTALL/helpers/distro.sh"
+
+if ! is_fedora; then
+  exit 0
+fi
+
+stamp="$HOME/.local/state/omarchy/walker-elephant-version"
+before="$(cat "$stamp" 2>/dev/null || true)"
+
+echo -e "\e[32m\nUpdate source-built packages (walker, elephant)\e[0m"
+bash "$OMARCHY_INSTALL/helpers/fedora-walker-elephant.sh"
+
+echo -e "\e[32m\nUpdate source-built TUIs (impala, wiremix)\e[0m"
+bash "$OMARCHY_INSTALL/helpers/fedora-rust-tuis.sh"
+
+after="$(cat "$stamp" 2>/dev/null || true)"
+
+# Restart the launcher only when it was actually rebuilt: the running elephant service still has the
+# old provider plugins loaded, and Go plugins are version-locked to the binary that built them.
+if [[ "$before" != "$after" ]]; then
+  omarchy-restart-walker || true
+fi

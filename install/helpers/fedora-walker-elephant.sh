@@ -28,19 +28,6 @@ command_exists_or_linked() {
 }
 
 
-install_pkg_if_available() {
-  local pkg="$1"
-  if command_exists_or_linked "$pkg"; then
-    return 0
-  fi
-
-
-  if dnf list --available "$pkg" >/dev/null 2>&1; then
-    sudo dnf install -y "$pkg" || return 1
-  fi
-}
-
-
 link_cargo_bin() {
   local bin="$1"
   ensure_local_bin_path
@@ -63,24 +50,12 @@ install_walker_from_source() {
   fi
 
 
-  if ! git clone --depth=1 https://github.com/abenz1267/walker.git "$src_dir"; then
-    echo "[WARN] Failed to clone walker source"
+  # Clone the tag directly. A --depth=1 clone followed by a tag fetch does not reliably have the
+  # tagged commit's objects, so the ref must be selected at clone time.
+  if ! clone_ref https://github.com/abenz1267/walker.git "$version_ref" "$src_dir"; then
+    echo "[WARN] Failed to clone walker source (ref: ${version_ref:-default branch})"
     rm -rf "$src_dir"
     return 1
-  fi
-
-
-  if [[ -n "$version_ref" ]]; then
-    if ! git -C "$src_dir" fetch --tags --force; then
-      echo "[WARN] Failed to fetch walker tags for ref: $version_ref"
-      rm -rf "$src_dir"
-      return 1
-    fi
-    if ! git -C "$src_dir" checkout "$version_ref"; then
-      echo "[WARN] Failed to checkout walker ref: $version_ref"
-      rm -rf "$src_dir"
-      return 1
-    fi
   fi
 
 
@@ -145,6 +120,9 @@ cleanup_temp_build_deps() {
 
 elephant_providers_present() {
   local providers_dir="$HOME/.config/elephant/providers"
+  # dnfpackages is Elephant's own DNF provider (search and install packages from the launcher). It is
+  # a plain Go plugin like the other nine and shells out to the dnf CLI, so it costs one more
+  # `go build` out of the source tree we are already compiling - no extra toolchain, no extra clone.
   local providers=(
     providerlist
     desktopapplications
@@ -155,6 +133,7 @@ elephant_providers_present() {
     files
     websearch
     runner
+    dnfpackages
   )
 
 
@@ -184,6 +163,7 @@ install_elephant_go() {
     files
     websearch
     runner
+    dnfpackages
   )
 
 
@@ -194,24 +174,10 @@ install_elephant_go() {
   fi
 
 
-  if ! git clone --depth=1 https://github.com/abenz1267/elephant.git "$src_dir"; then
-    echo "[WARN] Failed to clone elephant source"
+  if ! clone_ref https://github.com/abenz1267/elephant.git "$version_ref" "$src_dir"; then
+    echo "[WARN] Failed to clone elephant source (ref: ${version_ref:-default branch})"
     rm -rf "$src_dir"
     return 1
-  fi
-
-
-  if [[ -n "$version_ref" ]]; then
-    if ! git -C "$src_dir" fetch --tags --force; then
-      echo "[WARN] Failed to fetch elephant tags for ref: $version_ref"
-      rm -rf "$src_dir"
-      return 1
-    fi
-    if ! git -C "$src_dir" checkout "$version_ref"; then
-      echo "[WARN] Failed to checkout elephant ref: $version_ref"
-      rm -rf "$src_dir"
-      return 1
-    fi
   fi
 
 
@@ -244,9 +210,42 @@ install_elephant_go() {
 }
 
 
-# Allow pinning via env if a known-good version is required in CI/release.
-WALKER_VERSION="${OMARCHY_WALKER_VERSION:-}"
-ELEPHANT_VERSION="${OMARCHY_ELEPHANT_VERSION:-}"
+# Versions verified against this Omarchy release. Both are built from source on Fedora (neither is
+# packaged for Fedora or in any COPR), so they are pinned rather than tracking the default branch:
+# an unreleased HEAD is not something a user's launcher should be upgraded to during omarchy-update.
+# Bump these when a new Omarchy release needs a newer launcher; the stamp file below makes existing
+# installs pick the new version up on the next update.
+WALKER_VERSION="${OMARCHY_WALKER_VERSION:-v2.16.2}"
+ELEPHANT_VERSION="${OMARCHY_ELEPHANT_VERSION:-v2.21.0}"
+
+WALKER_ELEPHANT_STAMP="$HOME/.local/state/omarchy/walker-elephant-version"
+WALKER_ELEPHANT_STAMP_VALUE="walker=$WALKER_VERSION elephant=$ELEPHANT_VERSION"
+
+stamp_matches() {
+  [[ -f "$WALKER_ELEPHANT_STAMP" ]] &&
+    [[ "$(cat "$WALKER_ELEPHANT_STAMP")" == "$WALKER_ELEPHANT_STAMP_VALUE" ]]
+}
+
+write_stamp() {
+  if [[ "${OMARCHY_DRY_RUN:-0}" == "1" ]]; then
+    echo "[DRY-RUN] Would record installed versions: $WALKER_ELEPHANT_STAMP_VALUE"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$WALKER_ELEPHANT_STAMP")"
+  echo "$WALKER_ELEPHANT_STAMP_VALUE" >"$WALKER_ELEPHANT_STAMP"
+}
+
+# Clone a single ref shallowly. An empty ref means the default branch.
+clone_ref() {
+  local url="$1" ref="$2" dest="$3"
+
+  if [[ -n "$ref" ]]; then
+    git clone --depth=1 --branch "$ref" "$url" "$dest"
+  else
+    git clone --depth=1 "$url" "$dest"
+  fi
+}
 
 
 BUILD_DEPS=(
@@ -299,19 +298,25 @@ fail_walker_install() {
 }
 
 
-# Package-first path.
-install_pkg_if_available walker || true
-install_pkg_if_available elephant || true
+# Both binaries live in ~/.local/bin, which is not on PATH in a non-interactive shell - and this
+# script runs from omarchy-update. Without this the checks below would not see an existing build and
+# would rebuild walker and elephant from source on every single update.
+ensure_local_bin_path
 
 
-if command_exists_or_linked walker && command_exists_or_linked elephant && elephant_providers_present; then
-  echo "[OK] Walker and Elephant (with providers) available via packages/path"
+# Already at the pinned versions - nothing to do. This is what makes the script safe to re-run from
+# omarchy-update: it only rebuilds when the pinned version actually changed, or when a build is
+# missing. Elephant's providers are Go plugins and are version-locked to the elephant binary, so
+# they are always rebuilt together with it.
+if stamp_matches && command_exists_or_linked walker && command_exists_or_linked elephant && elephant_providers_present; then
+  echo "[OK] Walker $WALKER_VERSION and Elephant $ELEPHANT_VERSION already installed"
   link_cargo_bin walker
   exit 0
 fi
 
 
-# Build fallback path.
+# Build path. Neither walker nor elephant is packaged in Fedora or in any enabled COPR, so this is
+# the only way onto the system.
 ensure_official_gtk_build_deps || {
   fail_walker_install "Failed to install official GTK build dependencies"
 }
@@ -327,9 +332,9 @@ for dep in "${BUILD_DEPS[@]}"; do
 done
 
 
-if ! command_exists_or_linked walker; then
-  install_walker_from_source "$WALKER_VERSION" || fail_walker_install "source build failed"
-fi
+# Reaching this point means the installed build is missing or is not the pinned version, so both are
+# rebuilt - an existing older walker must be replaced, not kept.
+install_walker_from_source "$WALKER_VERSION" || fail_walker_install "source build failed"
 
 
 if ! command -v walker >/dev/null 2>&1; then
@@ -345,8 +350,14 @@ fi
 echo "[OK] Walker verification passed: $(command -v walker)"
 
 
-if ! command_exists_or_linked elephant || ! elephant_providers_present; then
-  install_elephant_go "$ELEPHANT_VERSION" || true
+elephant_ok=1
+install_elephant_go "$ELEPHANT_VERSION" || elephant_ok=0
+
+
+if ((elephant_ok)); then
+  write_stamp
+else
+  echo "[WARN] Elephant build failed - leaving the version stamp unwritten so the next update retries"
 fi
 
 

@@ -73,12 +73,18 @@ install_cargo_tool() {
   local name="$1"
   local version="$2"
 
-  if command -v "$name" >/dev/null 2>&1 || [[ -x "$HOME/.cargo/bin/$name" ]]; then
-    echo "[OK] $name already installed"
+  # cargo tracks what it installed and at which version, so the pinned version is the check: "is it
+  # there" is not enough. Without this an existing install would sit on the version it was first built
+  # with forever, exactly like walker did - nothing else can move a cargo-installed binary.
+  if cargo install --list 2>/dev/null | grep -qx "$name v$version:"; then
+    echo "[OK] $name $version already installed"
+    ensure_local_bin_path
+    ln -sf "$HOME/.cargo/bin/$name" "$HOME/.local/bin/$name"
     return 0
   fi
 
-  if ! cargo install --locked "$name" --version "$version"; then
+  echo "[INFO] Installing $name $version"
+  if ! cargo install --locked --force "$name" --version "$version"; then
     echo "[WARN] cargo install failed for $name"
     return 1
   fi
@@ -88,11 +94,13 @@ install_cargo_tool() {
   echo "[OK] $name installed via cargo ($version)"
 }
 
+# Pinned to the current upstream releases, and bumped deliberately: a cargo build is the only way
+# these move, so the pin is what an existing install upgrades to on the next omarchy-update.
 install_bluetui
 ensure_rust_toolchain || echo "[WARN] rust toolchain setup failed"
 ensure_wiremix_build_deps || echo "[WARN] wiremix dependency setup failed"
 install_cargo_tool impala 0.7.3 || true
-install_cargo_tool wiremix 0.9.0 || true
+install_cargo_tool wiremix 0.11.0 || true
 
 echo
 echo "Summary of actions:"
