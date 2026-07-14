@@ -19,7 +19,7 @@ fi
 
 is_arch_only_migration() {
   local file="$1"
-  grep -Eq "\\bpacman\\b|\\byay\\b|\\bparu\\b|/etc/pacman|mkinitcpio|limine|pacman-key|omarchy-refresh-pacman|linux-asahi|install/config/hardware/(fix-fkeys|intel|nvidia|fix-surface-keyboard|fix-bcm43xx|fix-apple-t2|fix-apple-spi-keyboard|fix-apple-bcm43xx|fix-apple-bcm4360|fix-apple-suspend-nvme)\\.sh" "$file"
+  grep -Eq "\\bpacman\\b|\\byay\\b|\\bparu\\b|/etc/pacman|mkinitcpio|limine|pacman-key|omarchy-refresh-pacman|linux-asahi|omarchy-hw-intel|\\bvulkan-(intel|radeon|asahi)\\b|install/config/hardware/(fix-fkeys|intel|nvidia|fix-surface-keyboard|fix-bcm43xx|fix-apple-t2|fix-apple-spi-keyboard|fix-apple-bcm43xx|fix-apple-bcm4360|fix-apple-suspend-nvme)\\.sh" "$file"
 }
 
 STATE_DIR="$HOME/.local/state/omarchy/migrations"
