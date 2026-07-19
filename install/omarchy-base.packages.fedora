@@ -68,6 +68,10 @@ fd-find
 zoxide
 fastfetch
 jq
+# omarchy-menu-keybindings resolves XKB keycodes with xkbcli (libxkbcommon-utils) and decodes the
+# Hyprland bind list with Perl's JSON::PP; without them SUPER + K shows nothing.
+libxkbcommon-utils
+perl-JSON-PP
 tmux
 gum
 less
