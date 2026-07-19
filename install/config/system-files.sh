@@ -81,6 +81,26 @@ cp -RT "$omarchy_default/plymouth" /usr/share/plymouth/themes/omarchy
 # a git-clone install where the user already exists nothing ever placed them. Seed both: /etc/skel,
 # because omarchy-reinstall-configs resyncs user defaults by replaying that tree, and the installing
 # user's home, so the extensions are present without creating a new account.
+# Create a directory inside the installing user's home owned by that user all the
+# way down. install -d only sets ownership on the final component, so seeding a
+# deep path like ~/.config/omarchy/branding as root leaves the ~/.config and
+# ~/.local/share roots owned by root - and the later run_user config.sh then
+# cannot write into them (its cp -R into ~/.config fails, so no shipped configs
+# reach the session and Hyprland starts bare). Walk the path from $user_home down
+# and install -d each still-missing component as the user.
+install_user_dir() {
+  local rel="${1#"$user_home"/}" owner="$OMARCHY_INSTALL_USER"
+  local group path="$user_home"
+  group="$(id -gn "$owner")"
+
+  local part
+  local IFS=/
+  for part in $rel; do
+    path="$path/$part"
+    [[ -d $path ]] || install -d -o "$owner" -g "$group" "$path"
+  done
+}
+
 skel_extensions="/etc/skel/.local/share/nautilus-python/extensions"
 install -d "$skel_extensions"
 cp -f "$omarchy_default"/nautilus-python/extensions/*.py "$skel_extensions/"
@@ -90,7 +110,7 @@ if [[ -n ${OMARCHY_INSTALL_USER:-} ]]; then
 
   if [[ -n $user_home && -d $user_home ]]; then
     user_extensions="$user_home/.local/share/nautilus-python/extensions"
-    install -d -o "$OMARCHY_INSTALL_USER" -g "$(id -gn "$OMARCHY_INSTALL_USER")" "$user_extensions"
+    install_user_dir "$user_extensions"
     cp -f "$omarchy_default"/nautilus-python/extensions/*.py "$user_extensions/"
     chown "$OMARCHY_INSTALL_USER:$(id -gn "$OMARCHY_INSTALL_USER")" "$user_extensions"/*.py
   fi
@@ -104,7 +124,11 @@ fi
 seed_branding() {
   local dir="$1" owner="${2:-}"
 
-  install -d ${owner:+-o "$owner" -g "$(id -gn "$owner")"} "$dir"
+  if [[ -n $owner ]]; then
+    install_user_dir "$dir"
+  else
+    install -d "$dir"
+  fi
 
   local pair source target
   for pair in "logo.txt:screensaver.txt" "icon.txt:about.txt"; do
