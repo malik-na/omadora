@@ -102,7 +102,19 @@ done
 source "$OMARCHY_INSTALL/user/all.sh"
 
 omarchy-refresh-applications
-xdg-settings set default-web-browser chromium.desktop
+
+# Fedora's chromium package installs chromium-browser.desktop; upstream's Arch package ships
+# chromium.desktop. xdg-settings exits 2 on an entry it cannot find, and this script runs under
+# set -e, so the wrong name aborted finalize-user here - before it seeded the migration state and
+# before it marked itself done. Take whichever name is actually installed, and never let this stop
+# the rest of finalization.
+for browser_desktop in chromium-browser.desktop chromium.desktop; do
+  if [[ -f /usr/share/applications/$browser_desktop ]]; then
+    xdg-settings set default-web-browser "$browser_desktop" || true
+    break
+  fi
+done
+
 xdg-mime default HEY.desktop x-scheme-handler/mailto
 
 if (( first_install )); then
