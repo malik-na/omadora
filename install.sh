@@ -36,13 +36,19 @@ bash "$OMARCHY_INSTALL/preflight/guard.sh" || exit 1
 
 # Administrator access. One prompt up front; passwordless-installer.sh then drops
 # a temporary NOPASSWD sudoers rule so the rest of the install doesn't re-ask.
-printf "%b" "$ANSI_HIDE_CURSOR"
+# Validate sudo with the cursor visible and the password read straight from the
+# terminal, then hide the cursor only once sudo is confirmed. This is the first
+# sudo call, so it is where the password is actually entered - hiding the cursor
+# first made the prompt look frozen and swallowed the keystrokes.
 echo "🔐 omarchy-mac-fedora installation requires administrator access..."
-if ! sudo -v; then
-  printf "%b" "$ANSI_SHOW_CURSOR"
-  echo "❌ sudo access is required." >&2
+if ! sudo -v </dev/tty; then
+  echo "❌ Could not obtain sudo access." >&2
+  echo "   Run this as a regular user in the 'wheel' group - not with 'sudo bash install.sh'." >&2
+  echo "   If an earlier run left a broken rule behind, clear it and re-check:" >&2
+  echo "     sudo rm -f /etc/sudoers.d/99-omarchy-installer && sudo visudo -c" >&2
   exit 1
 fi
+printf "%b" "$ANSI_HIDE_CURSOR"
 
 keep_sudo_alive() {
   while true; do
