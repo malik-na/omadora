@@ -4,6 +4,11 @@ local active_border_color = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, a
 local inactive_border_color = "rgba(595959aa)"
 
 hl.config({
+  -- Mitigate fullscreen artifacts on some Apple/Asahi systems.
+  render = {
+    direct_scanout = 0,
+  },
+
   general = {
     gaps_in = 5,
     gaps_out = 10,
