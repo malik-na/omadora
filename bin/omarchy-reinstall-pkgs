@@ -9,3 +9,6 @@ set -e
 # so this is safe to re-run; it repairs an install where packages were removed by hand.
 mapfile -t packages < <(grep -vE '^\s*#|^\s*$' "$OMARCHY_PATH/install/omarchy-base.packages.fedora")
 sudo dnf install -y --skip-unavailable "${packages[@]}"
+
+# The compositor is not in that list - it is a choice between hyprland and hyprland-git.
+bash "$OMARCHY_PATH/install/helpers/fedora-hyprland.sh"

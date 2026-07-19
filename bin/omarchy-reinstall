@@ -23,6 +23,9 @@ if gum confirm "Are you sure you want to reinstall and lose all config changes?"
   mapfile -t packages < <(grep -v '^#' "$OMARCHY_PATH/install/omarchy-base.packages.fedora" | grep -v '^$')
   sudo dnf install -y "${packages[@]}"
 
+  # The compositor is not in that list - it is a choice between hyprland and hyprland-git.
+  bash "$OMARCHY_PATH/install/helpers/fedora-hyprland.sh"
+
   echo "Resetting all Omarchy configs"
   cp -R ~/.local/share/omarchy/config/* ~/.config/
   cp ~/.local/share/omarchy/default/bashrc ~/.bashrc

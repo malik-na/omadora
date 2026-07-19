@@ -30,7 +30,7 @@ by Fedora, and each one is a person who can stop maintaining it.
 
 | COPR | What it provides | Why we need it |
 |---|---|---|
-| [`lionheartp/Hyprland`](https://copr.fedorainfracloud.org/coprs/lionheartp/Hyprland/) | `hyprland` (0.55.x), `hyprsunset`, `hyprpicker`, `hyprland-qt-support`, `hyprland-guiutils`, `xdg-desktop-portal-hyprland`, `uwsm`, `gpu-screen-recorder` | Fedora does not ship Hyprland for aarch64. This is the build that works on Apple Silicon, and the only one with a Fedora 44 chroot. It is pinned to `priority=10` (with core GTK/Pango/Cairo excluded) so dnf prefers it for exactly these packages. |
+| [`lionheartp/Hyprland`](https://copr.fedorainfracloud.org/coprs/lionheartp/Hyprland/) | `hyprland` (0.55.x) or `hyprland-git`, `hyprsunset`, `hyprpicker`, `hyprland-qt-support`, `hyprland-guiutils`, `xdg-desktop-portal-hyprland`, `uwsm`, `gpu-screen-recorder` | Fedora does not ship Hyprland for aarch64. This is the build that works on Apple Silicon, and the only one with a Fedora 44 chroot. It is pinned to `priority=10` (with core GTK/Pango/Cairo excluded) so dnf prefers it for exactly these packages. |
 | [`atim/starship`](https://copr.fedorainfracloud.org/coprs/atim/starship/) | `starship` | prompt |
 | [`atim/lazygit`](https://copr.fedorainfracloud.org/coprs/atim/lazygit/) | `lazygit` | git TUI |
 
@@ -40,6 +40,15 @@ by Fedora, and each one is a person who can stop maintaining it.
 |---|---|---|
 | [`nclundell/fedora-extras`](https://copr.fedorainfracloud.org/coprs/nclundell/fedora-extras/) | `lazydocker`, `bottom`, `nushell`, `yazi`, and others | assorted TUIs |
 | [`scottames/ghostty`](https://copr.fedorainfracloud.org/coprs/scottames/ghostty/) | `ghostty` | only needed by `omarchy-install-terminal ghostty`. The default terminal is alacritty, so this must never be required - it used to be, pointing at a COPR that did not exist, and that alone killed every install. |
+
+The compositor package is chosen at install time by `install/helpers/fedora-hyprland.sh`, not listed
+in `omarchy-base.packages.fedora`. `lionheartp/Hyprland` builds stable `hyprland` once per release
+but rebuilds `hyprutils`/`aquamarine` continuously, so an soname bump leaves stable uninstallable
+until it is rebuilt (0.55.4, built 2026-06-11, broke on the 2026-07-18 library rebuilds). The helper
+prefers stable and falls back to `hyprland-git`, which is rebuilt daily against the current
+libraries. The two packages conflict, so exactly one is installed. `omarchy-update-manual-pkgs` runs
+the helper on every update, so a machine on the fallback returns to stable unattended once the COPR
+catches up.
 
 Two COPRs the 3.8.x line used are gone on purpose: `solopasha/hyprland` (unmaintained - no builds
 since 2025-10 - and its only contribution, satty, is retired by quattro) and `erikreider/swayosd`

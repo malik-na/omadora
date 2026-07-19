@@ -109,6 +109,7 @@ run_user "$OMARCHY_INSTALL/preflight/identification.sh"
 run_user "$OMARCHY_INSTALL/preflight/dnf.sh" || abort_install "preflight/dnf.sh (COPR + repos)"
 
 # --- Packaging ---------------------------------------------------------------
+run_user "$OMARCHY_INSTALL/helpers/fedora-hyprland.sh"
 run_user "$OMARCHY_INSTALL/packaging/base.sh"
 run_user "$OMARCHY_INSTALL/packaging/other.sh"
 run_user "$OMARCHY_INSTALL/packaging/fonts.sh"

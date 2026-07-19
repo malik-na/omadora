@@ -9,7 +9,9 @@
 # available (see install/helpers/fedora-manual.sh).
 
 # Desktop - Hyprland stack (lionheartp COPR)
-hyprland
+# The compositor itself is not listed here: install/helpers/fedora-hyprland.sh picks between the
+# stable `hyprland` package and `hyprland-git`, because the COPR's stable build periodically stops
+# resolving while it waits to be rebuilt against new hyprutils/aquamarine sonames.
 hyprland-qt-support
 hyprland-guiutils
 hyprsunset
