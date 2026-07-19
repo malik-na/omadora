@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# omarchy:summary=Detect whether the computer has an Intel SOF-capable audio DSP.
-# Matches Intel audio controllers (PCI class Multimedia audio or Audio device)
-# present on Skylake-and-later platforms that use sof-audio-pci-intel-* drivers.
+# omarchy:summary=Detect an Intel SOF-capable audio DSP
 
 lspci | grep -qiE '(Multimedia audio controller|Audio device).*Intel'

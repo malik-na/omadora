@@ -3,7 +3,7 @@
 # omarchy:summary=Apply the current theme color to Chromium, Chrome, Edge, and Brave
 # omarchy:hidden=true
 
-CHROMIUM_THEME=~/.config/omarchy/current/theme/chromium.theme
+CHROMIUM_THEME=$HOME/.local/state/omarchy/current/theme/chromium.theme
 
 # Use a default, neutral grey if theme doesn't have a color
 THEME_RGB_COLOR="28,32,39"

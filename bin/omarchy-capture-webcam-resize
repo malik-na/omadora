@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# omarchy:summary=Resize the active webcam recording overlay
+# omarchy:group=capture
+# omarchy:args=<smaller|larger|reset|small|medium|large>
+# omarchy:examples=omarchy capture webcam resize smaller | omarchy-capture-webcam-resize reset
+
+set -euo pipefail
+
+readonly MARGIN=40
+
+usage() {
+  echo "Usage: omarchy-capture-webcam-resize <smaller|larger|reset|small|medium|large>" >&2
+  exit 1
+}
+
+hypr_dispatch() {
+  local lua="$1"
+  shift
+
+  hyprctl dispatch "$lua" >/dev/null 2>&1 || hyprctl dispatch "$@" >/dev/null
+}
+
+action=${1:-}
+case $action in
+smaller | larger | reset | small | medium | large) ;;
+*) usage ;;
+esac
+
+if ! client=$(hyprctl clients -j 2>/dev/null | jq -cer 'first(.[] | select(.title == "WebcamOverlay")) // empty' 2>/dev/null); then
+  exit 0
+fi
+
+read -r address current_width current_height monitor_id < <(
+  jq -r '[.address, .size[0], .size[1], .monitor] | @tsv' <<<"$client"
+)
+
+[[ -n $address && $current_width =~ ^[0-9]+$ && $current_height =~ ^[0-9]+$ && $monitor_id =~ ^[0-9]+$ ]] || exit 0
+((current_width > 0 && current_height > 0)) || exit 0
+
+if ! monitor=$(hyprctl monitors -j 2>/dev/null | jq -cer --argjson id "$monitor_id" 'first(.[] | select(.id == $id)) // empty' 2>/dev/null); then
+  exit 0
+fi
+
+read -r monitor_x monitor_y monitor_width monitor_height < <(
+  jq -r '
+    . as $monitor |
+    (($monitor.transform // 0) % 2 == 1) as $rotated |
+    [
+      .x,
+      .y,
+      (((if $rotated then .height else .width end) / .scale) | floor),
+      (((if $rotated then .width else .height end) / .scale) | floor)
+    ] | @tsv
+  ' <<<"$monitor"
+)
+
+[[ $monitor_x =~ ^-?[0-9]+$ && $monitor_y =~ ^-?[0-9]+$ && $monitor_width =~ ^[0-9]+$ && $monitor_height =~ ^[0-9]+$ ]] || exit 0
+
+# Scale the 8:9 portrait presets from monitor height so they occupy the same
+# proportion of a 1080p, HiDPI, ultrawide, or 6K recording.
+small_height=$(((monitor_height * 9 + 25) / 50))
+small_width=$(((small_height * 8 + 4) / 9))
+medium_height=$(((monitor_height + 2) / 4))
+medium_width=$(((medium_height * 8 + 4) / 9))
+large_height=$(((monitor_height * 27 + 40) / 80))
+large_width=$(((large_height * 8 + 4) / 9))
+
+target_width=$current_width
+target_height=$current_height
+case $action in
+small)
+  target_width=$small_width
+  target_height=$small_height
+  ;;
+medium | reset)
+  target_width=$medium_width
+  target_height=$medium_height
+  ;;
+large)
+  target_width=$large_width
+  target_height=$large_height
+  ;;
+smaller)
+  if ((large_width < current_width)); then
+    target_width=$large_width
+    target_height=$large_height
+  elif ((medium_width < current_width)); then
+    target_width=$medium_width
+    target_height=$medium_height
+  elif ((small_width < current_width)); then
+    target_width=$small_width
+    target_height=$small_height
+  fi
+  ;;
+larger)
+  if ((small_width > current_width)); then
+    target_width=$small_width
+    target_height=$small_height
+  elif ((medium_width > current_width)); then
+    target_width=$medium_width
+    target_height=$medium_height
+  elif ((large_width > current_width)); then
+    target_width=$large_width
+    target_height=$large_height
+  fi
+  ;;
+esac
+
+target_x=$((monitor_x + monitor_width - target_width - MARGIN))
+target_y=$((monitor_y + monitor_height - target_height - MARGIN))
+
+((target_x < monitor_x + MARGIN)) && target_x=$((monitor_x + MARGIN))
+((target_y < monitor_y + MARGIN)) && target_y=$((monitor_y + MARGIN))
+
+window="address:$address"
+hypr_dispatch \
+  "hl.dsp.window.resize({ window = \"$window\", x = $target_width, y = $target_height })" \
+  resizewindowpixel "exact $target_width $target_height,$window"
+hypr_dispatch \
+  "hl.dsp.window.move({ window = \"$window\", x = $target_x, y = $target_y })" \
+  movewindowpixel "exact $target_x $target_y,$window"
