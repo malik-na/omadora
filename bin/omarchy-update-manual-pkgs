@@ -1,17 +1,12 @@
 #!/bin/bash
 
-# omarchy:summary=Update everything dnf cannot: Flatpak apps and the packages built from source
+# omarchy:summary=Update everything dnf cannot reach: the Flatpak apps
 # omarchy:requires-sudo=true
 
 # On Arch, `yay -Sua` sweeps up everything outside the distro's repositories. This is the Fedora
-# equivalent, and it covers the two things a plain `dnf upgrade` can never move:
-#
-#   Flatpak apps      - Typora and LocalSend are not in Fedora, so the port installs them from
-#                       Flathub. Upstream gets them from the AUR and updates them with the rest;
-#                       here, nothing was updating them at all.
-#   Source builds     - walker, elephant and the cargo TUIs are compiled at install time. Both
-#                       helpers are version-aware and exit immediately when the installed build
-#                       already matches the pin, so a normal update pays almost nothing for this.
+# equivalent. Since quattro retired the source-built launcher stack (walker, elephant, and the cargo
+# TUIs), the only thing left that a plain `dnf upgrade` can never move is Flatpak: Typora, LocalSend,
+# Obsidian and Moonlight come from Flathub, and nothing else updates them.
 
 OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
 OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
@@ -28,21 +23,4 @@ fi
 if command -v flatpak >/dev/null 2>&1 && [[ -n "$(flatpak list --app --user --columns=application 2>/dev/null)" ]]; then
   echo -e "\e[32m\nUpdate Flatpak apps\e[0m"
   flatpak update -y --user || echo "[WARNING] Flatpak update failed - continuing"
-fi
-
-stamp="$HOME/.local/state/omarchy/walker-elephant-version"
-before="$(cat "$stamp" 2>/dev/null || true)"
-
-echo -e "\e[32m\nUpdate source-built packages (walker, elephant)\e[0m"
-bash "$OMARCHY_INSTALL/helpers/fedora-walker-elephant.sh"
-
-echo -e "\e[32m\nUpdate source-built TUIs (impala, wiremix)\e[0m"
-bash "$OMARCHY_INSTALL/helpers/fedora-rust-tuis.sh"
-
-after="$(cat "$stamp" 2>/dev/null || true)"
-
-# Restart the launcher only when it was actually rebuilt: the running elephant service still has the
-# old provider plugins loaded, and Go plugins are version-locked to the binary that built them.
-if [[ "$before" != "$after" ]]; then
-  omarchy-restart-walker || true
 fi

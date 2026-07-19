@@ -3,9 +3,7 @@
 # Run this release's new migrations in an emulated Fedora 44 aarch64 container, twice, and prove they
 # are idempotent: the second run must succeed, change nothing, and produce no second-run effect.
 #
-# Scope limit: dnf and bash only, never a compile. The walker/elephant migration is checked on its
-# no-op path (pinned version already installed) - building Rust and Go under emulation proves nothing
-# about packaging and takes forever. The build itself belongs on the target machine.
+# Scope limit: dnf and bash only, never a compile.
 #
 # Requires: podman, and aarch64 user-mode emulation registered with binfmt_misc.
 #
@@ -21,7 +19,6 @@ FEDORA_RELEASE="${FEDORA_RELEASE:-44}"
 MIGRATIONS=(
   1783927940.sh # remove dead COPRs, re-apply the Hyprland repo protections
   1783927950.sh # replace the packages Fedora 44 retired or renamed
-  1783927960.sh # rebuild walker + elephant at the pinned versions
 )
 
 command -v podman >/dev/null || {
@@ -47,49 +44,16 @@ podman run --rm --arch arm64 \
     dnf -q -y install dnf5-plugins sudo diffutils >/dev/null
     echo "  ok       dnf5-plugins, sudo, diffutils"
 
-    # The source-built packages must look already-current, so the migration takes its no-op path
-    # instead of compiling Rust and Go under emulation (which proves nothing about packaging and
-    # takes hours). Fake exactly what "already at the pinned version" means on a real machine: the
-    # binaries, the elephant provider plugins, the version stamp, and the cargo install list.
-    mkdir -p "$HOME/.local/bin" "$HOME/.config/elephant/providers" "$HOME/.local/state/omarchy"
+    mkdir -p "$HOME/.local/bin" "$HOME/.local/state/omarchy"
 
-    for bin in walker elephant; do
-      printf "#!/bin/bash\necho fake-$bin\n" > "$HOME/.local/bin/$bin"
-      chmod +x "$HOME/.local/bin/$bin"
-    done
-
-    # The provider list, the version pins and the cargo pins all come from the scripts themselves -
-    # if someone adds a provider or bumps a version and forgets this test, the test must not silently
-    # keep passing against a stale expectation.
-    providers="$(sed -n "/^elephant_providers_present/,/^}/p" /omarchy/install/helpers/fedora-walker-elephant.sh |
-      sed -n "/local providers=(/,/)/p" | grep -oE "^\s+[a-z]+$" | tr -d " ")"
-    for provider in $providers; do
-      : > "$HOME/.config/elephant/providers/$provider.so"
-    done
-
-    walker_version="$(grep -oP "OMARCHY_WALKER_VERSION:-\K[^}]+" /omarchy/install/helpers/fedora-walker-elephant.sh)"
-    elephant_version="$(grep -oP "OMARCHY_ELEPHANT_VERSION:-\K[^}]+" /omarchy/install/helpers/fedora-walker-elephant.sh)"
-    echo "walker=$walker_version elephant=$elephant_version" > "$HOME/.local/state/omarchy/walker-elephant-version"
-    echo "  ok       providers: $(wc -w <<<"$providers"), stamp: walker $walker_version / elephant $elephant_version"
-
-    # cargo is faked, not installed: a real `cargo install` is a compile, and compiling under
-    # emulation is exactly what this harness must never do. The shim reports the pinned versions as
-    # already installed, which is the path a healthy machine takes on every update.
-    cargo_pins="$(grep -oE "^install_cargo_tool [a-z]+ [0-9.]+" /omarchy/install/helpers/fedora-rust-tuis.sh |
-      awk "{ print \$2 \" v\" \$3 \":\" }")"
+    # A compile must never happen in this harness. If a migration reaches for cargo, that is a bug
+    # this shim turns into a loud failure instead of an hours-long emulated build.
     {
       echo "#!/bin/bash"
-      echo "if [[ \$1 == install && \$2 == --list ]]; then"
-      while IFS= read -r pin; do echo "  echo \"$pin\""; done <<<"$cargo_pins"
-      echo "  exit 0"
-      echo "fi"
       echo "echo \"[CRITICAL] a migration tried to run a real cargo build: cargo \$*\" >&2"
       echo "exit 1"
     } > /usr/local/bin/cargo
     chmod +x /usr/local/bin/cargo
-    printf "#!/bin/bash\necho fake-rustc\n" > /usr/local/bin/rustc
-    chmod +x /usr/local/bin/rustc
-    echo "  ok       cargo shim reports: $(tr "\n" " " <<<"$cargo_pins")"
     echo
 
     # Fingerprint everything a migration is allowed to touch, so a second-run effect cannot hide.
