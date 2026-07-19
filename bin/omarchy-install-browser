@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Install a supported browser
-# omarchy:args=<chrome|brave|brave-origin|edge|firefox|zen>
+# omarchy:args=<brave|brave-origin|firefox|zen>
 # omarchy:examples=omarchy install browser firefox | omarchy install browser brave
 
 setup_policy_directory() {
@@ -27,33 +27,53 @@ setup_firefox_preferences() {
   sudo cp -f "$OMARCHY_PATH/default/firefox/policies.json" "$distribution_dir/policies.json"
 }
 
+install_zen() {
+  # Upstream installs the AUR's zen-browser-bin. Zen ships zen.linux-aarch64.tar.xz on every
+  # release, so unpack that into /opt and link the launcher.
+  local url="https://github.com/zen-browser/desktop/releases/latest/download/zen.linux-aarch64.tar.xz"
+  local archive
+  archive=$(mktemp -t zen-XXXXXX.tar.xz) || return 1
+
+  echo "Downloading Zen (aarch64)..."
+  curl -fL --retry 3 -o "$archive" "$url" || { rm -f "$archive"; return 1; }
+
+  sudo rm -rf /opt/zen
+  sudo mkdir -p /opt/zen
+  sudo tar -xJf "$archive" -C /opt/zen --strip-components=1 || { rm -f "$archive"; return 1; }
+  rm -f "$archive"
+
+  sudo ln -sfn /opt/zen/zen /usr/local/bin/zen
+
+  sudo tee /usr/share/applications/zen.desktop >/dev/null <<'DESKTOP'
+[Desktop Entry]
+Name=Zen Browser
+Exec=/opt/zen/zen %u
+Icon=/opt/zen/browser/chrome/icons/default/default128.png
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;x-scheme-handler/http;x-scheme-handler/https;
+StartupNotify=true
+DESKTOP
+}
+
+add_brave_repo() {
+  # Brave publishes aarch64 alongside x86_64 in its own signed repository, which is where both
+  # brave-browser and brave-origin come from. Upstream installs the AUR's brave-bin instead.
+  sudo rpm --import https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+  sudo curl -fsS -o /etc/yum.repos.d/brave-browser.repo \
+    https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+}
+
 setup_firefox_wayland() {
   mkdir -p ~/.config/environment.d
   echo "MOZ_ENABLE_WAYLAND=1" > ~/.config/environment.d/omarchy-firefox-wayland.conf
 }
 
 case $1 in
-chrome)
-  echo "Installing Chrome..."
-  omarchy-pkg-aur-add google-chrome || exit 1
-
-  setup_policy_directory /etc/opt/chrome/policies/managed
-  copy_chromium_flags ~/.config/chrome-flags.conf
-  omarchy-theme-set-browser
-  announce_browser_installed "Chrome"
-  ;;
-edge)
-  echo "Installing Edge..."
-  omarchy-pkg-aur-add microsoft-edge-stable-bin || exit 1
-
-  setup_policy_directory /etc/opt/edge/policies/managed
-  copy_chromium_flags ~/.config/microsoft-edge-stable-flags.conf
-  omarchy-theme-set-browser
-  announce_browser_installed "Edge"
-  ;;
 brave)
   echo "Installing Brave..."
-  omarchy-pkg-aur-add brave-bin || exit 1
+  add_brave_repo
+  omarchy-pkg-add brave-browser || exit 1
 
   setup_policy_directory /etc/brave/policies/managed
   copy_chromium_flags ~/.config/brave-flags.conf
@@ -62,12 +82,13 @@ brave)
   ;;
 brave-origin)
   echo "Installing Brave Origin..."
-  omarchy-pkg-aur-add brave-origin-beta-bin || exit 1
+  add_brave_repo
+  omarchy-pkg-add brave-origin || exit 1
 
   setup_policy_directory /etc/brave/policies/managed
   mkdir -p ~/.config
   # FIXME: Use normal chromium flags when Brave Origin wrapper has been fixed
-  echo "--load-extension=/usr/share/omarchy/default/chromium/extensions/copy-url,/usr/share/omarchy/default/chromium/extensions/yt-dlp" > ~/.config/brave-origin-beta-flags.conf
+  echo "--load-extension=$OMARCHY_PATH/default/chromium/extensions/copy-url,$OMARCHY_PATH/default/chromium/extensions/yt-dlp" >~/.config/brave-origin-flags.conf
   omarchy-install-chromium-ytdlp
   omarchy-theme-set-browser
   announce_browser_installed "Brave Origin"
@@ -82,9 +103,10 @@ firefox)
   ;;
 zen)
   echo "Installing Zen..."
-  omarchy-pkg-aur-add zen-browser-bin || exit 1
+  # Zen has no Fedora package and no vendor repository, but it does publish an aarch64 tarball.
+  install_zen || exit 1
 
-  setup_firefox_preferences /opt/zen-browser/distribution
+  setup_firefox_preferences /opt/zen/distribution
   setup_firefox_wayland
   announce_browser_installed "Zen"
   ;;

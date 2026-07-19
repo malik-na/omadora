@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Remove a supported browser and clean up Omarchy browser defaults
-# omarchy:args=<chrome|brave|brave-origin|edge|firefox|zen>
+# omarchy:args=<brave|brave-origin|firefox|zen>
 # omarchy:examples=omarchy remove browser firefox | omarchy remove browser brave
 # omarchy:requires-sudo=true
 
@@ -22,37 +22,23 @@ set_fallback_default_browser() {
 }
 
 case $1 in
-chrome)
-  echo "Removing Chrome..."
-  set_fallback_default_browser google-chrome.desktop
-  omarchy-pkg-drop google-chrome
-  rm -f ~/.config/chrome-flags.conf
-  sudo rm -f /etc/opt/chrome/policies/managed/color.json
-  ;;
-edge)
-  echo "Removing Edge..."
-  set_fallback_default_browser microsoft-edge.desktop
-  omarchy-pkg-drop microsoft-edge-stable-bin
-  rm -f ~/.config/microsoft-edge-stable-flags.conf
-  sudo rm -f /etc/opt/edge/policies/managed/color.json
-  ;;
 brave)
   echo "Removing Brave..."
   set_fallback_default_browser brave-browser.desktop
-  omarchy-pkg-drop brave-bin
+  omarchy-pkg-drop brave-browser
   rm -f ~/.config/brave-flags.conf
 
-  if omarchy-pkg-missing brave-origin-beta-bin; then
+  if omarchy-pkg-missing brave-origin; then
     sudo rm -rf /etc/brave
   fi
   ;;
 brave-origin)
   echo "Removing Brave Origin..."
-  set_fallback_default_browser brave-origin-beta.desktop
-  omarchy-pkg-drop brave-origin-beta-bin
-  rm -f ~/.config/brave-origin-beta-flags.conf
+  set_fallback_default_browser brave-origin.desktop
+  omarchy-pkg-drop brave-origin
+  rm -f ~/.config/brave-origin-flags.conf
 
-  if omarchy-pkg-missing brave-bin; then
+  if omarchy-pkg-missing brave-browser; then
     sudo rm -rf /etc/brave
   fi
   ;;
@@ -64,10 +50,12 @@ firefox)
 zen)
   echo "Removing Zen..."
   set_fallback_default_browser zen.desktop
-  omarchy-pkg-drop zen-browser-bin
+  # Zen is unpacked into /opt rather than installed as a package, so there is nothing for dnf to drop.
+  sudo rm -rf /opt/zen
+  sudo rm -f /usr/local/bin/zen /usr/share/applications/zen.desktop
   ;;
 *)
-  echo "Usage: omarchy-remove-browser <chrome|brave|brave-origin|edge|firefox|zen>"
+  echo "Usage: omarchy-remove-browser <brave|brave-origin|firefox|zen>"
   exit 1
   ;;
 esac

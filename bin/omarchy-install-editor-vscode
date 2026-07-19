@@ -3,7 +3,20 @@
 # omarchy:summary=Install VS Code and configure Omarchy defaults for secrets, updates, and theme
 
 echo "Installing VSCode..."
-omarchy-pkg-add visual-studio-code-bin
+
+# Upstream installs the AUR's visual-studio-code-bin. Microsoft publishes an aarch64 rpm in its own
+# signed repository, which is where the `code` package comes from here.
+sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+cat <<EOF | sudo tee /etc/yum.repos.d/vscode.repo >/dev/null
+[code]
+name=Visual Studio Code
+baseurl=https://packages.microsoft.com/yumrepos/vscode
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+
+omarchy-pkg-add code
 
 mkdir -p ~/.vscode ~/.config/Code/User
 
