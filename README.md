@@ -1,6 +1,13 @@
-# Omarchy Mac Fedora (Fedora Asahi Remix)
+# Omarchy Mac Fedora — Quattro
 
 A concise, beginner-friendly guide to install Omarchy Mac Fedora on **Fedora Asahi Remix (aarch64)** for Apple Silicon Macs M1/M2
+
+> ### 🆕 This is Omarchy "Quattro"
+> This branch tracks **Omarchy quattro** — a major rework of the desktop. The bar, launcher,
+> notifications, and OSD (waybar / walker / mako / swayosd) are replaced by a single **Quickshell**
+> shell, and all Hyprland config — including every keybinding — moves to **Lua** (`.conf` → `.lua`).
+> **→ See [QUATTRO-CHANGES.md](QUATTRO-CHANGES.md) for the full list of what changed.**
+> For the previous 3.8.x line, use the `sync/upstream-v3.8.2` branch.
 
 _This project is an extension of [Omarchy Mac](https://github.com/malik-na/omarchy-mac) project._
 
