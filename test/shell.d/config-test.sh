@@ -360,11 +360,6 @@ jq -e '
 [[ -f $TMPDIR/home/.local/state/omarchy/restart-shell-called ]] || fail "shell refresh restarts shell"
 pass "shell refresh adds optional service widgets when services are available"
 
-if grep -RIl 'upgrade-to-quattro\|Omarchy 4\.0 is upgraded' "$ROOT/migrations" >/dev/null; then
-  fail "4.0 upgrade is not modeled as a migration"
-fi
-pass "4.0 upgrade is handled outside the migration runner"
-
 clock_migration=$(grep -rl 'Remove leading zero from bar clock date' "$ROOT/migrations" | head -n 1 || true)
 [[ -n $clock_migration ]] || fail "clock date format user migration exists"
 

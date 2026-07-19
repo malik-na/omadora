@@ -31,10 +31,10 @@ KNOWN_EXTERNAL=(
   omarchy-settings-dev   # likewise a package name, not a command
 )
 
-# omarchy-upgrade-to-quattro is the one-shot Arch->quattro migration, hard-guarded to exit on Fedora.
-# Its body lists Arch package names (omarchy-walker, omarchy-keyring, ...) as data, not invocations,
-# so it is not live Fedora code and is skipped here (matching the merge-error sweep's exclusion).
-SKIP_FILES=(bin/omarchy-upgrade-to-quattro)
+# No files are skipped. Upstream's Arch-only omarchy-upgrade-to-quattro used to be excluded here
+# (its body listed Arch package names as data); this fork upgrades through omarchy-update and the
+# migration runner, so that command was removed.
+SKIP_FILES=()
 
 is_skipped_file() {
   local candidate="$1" skip

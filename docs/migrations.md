@@ -149,6 +149,7 @@ rm ~/.local/state/omarchy/migrations/<migration>.sh
 omarchy-migrate
 ```
 
-Omarchy 4.0 is upgraded through `bin/omarchy-upgrade-to-quattro`, not through the
-normal migration runner. Do not add compatibility migrations for old installer
-layouts; put pre-4 package-layout transition work in the upgrade command instead.
+On this Fedora fork the 3.8.x → quattro (4.0) upgrade runs entirely through
+`omarchy-update` and the migration runner; there is no separate upgrade command.
+Upstream's `omarchy-upgrade-to-quattro` was pacman/keyring/limine-only and never
+applied to Fedora, so it was removed. Put pre-4 transition work in a migration.

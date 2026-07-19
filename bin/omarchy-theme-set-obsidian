@@ -27,7 +27,7 @@
 
 VAULTS_FILE="$HOME/.local/state/omarchy/obsidian-vaults"
 # quattro moved the current-theme dir to ~/.local/state/omarchy/current/theme (the ~/.config path is
-# the pre-quattro location, migrated by omarchy-upgrade-to-quattro). Reading the old path here made
+# the pre-quattro location, moved by the migration runner). Reading the old path here made
 # the generated obsidian.css invisible, so every vault fell through to the palette-derived fallback.
 CURRENT_THEME_DIR="$HOME/.local/state/omarchy/current/theme"
 
