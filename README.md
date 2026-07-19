@@ -128,13 +128,10 @@ sudo setfont ter-v22n
 
 ### Install Omarchy Mac Fedora
 
-As your regular sudo user, either run the one-line bootstrap:
+As your regular sudo user;
 
-```bash
-wget -qO- https://raw.githubusercontent.com/eightscrow/omarchy-mac-fedora-quattro/quattro/boot.sh | bash
-```
 
-or clone and run the installer yourself:
+Clone and run the installer:
 
 ```bash
 sudo dnf update
