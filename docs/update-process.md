@@ -1,21 +1,23 @@
 # Omarchy update process
 
-This document describes the intended update behavior now that Omarchy is
-package-backed. It covers the blessed update path plus what happens when a user attempts to
-bypass it:
+This document describes the update behavior of this fork, which ships by **git clone** rather than
+as a distribution package. Upstream Omarchy is package-backed on Arch and can therefore treat a
+`pacman -Syu` as an Omarchy update; here the two are separate things:
 
-1. `omarchy update` — the blessed interactive Omarchy update flow.
-2. `sudo pacman -Syu` — guarded by Omarchy and aborted with instructions unless
-   the user explicitly bypasses the guard.
+- **Omarchy itself** lives in a checkout at `$OMARCHY_PATH` (`~/.local/share/omarchy`) and updates
+  by pulling its branch.
+- **System packages** come from dnf and update independently.
 
-The design goal is:
+`omarchy update` is what ties them together, and it is the only path that runs migrations.
 
-- `omarchy update` owns the visible update pipeline: package transaction,
-  migrations, post-update hooks, update-state refresh, and restart checks.
-- Migrations run per-user after pacman finishes, because they may need `$HOME`,
-  DBus/session state, a graphical session, sudo, or user interaction.
-- Users who bypass `omarchy update` are nudged back by the pacman guard; if they
-  explicitly bypass it, their session is notified when migrations are pending.
+The design goals:
+
+- `omarchy update` owns the visible pipeline: git pull, package transaction, migrations,
+  post-update hooks, update-state refresh, and restart checks.
+- Migrations run per-user after the package transaction, because they may need `$HOME`, DBus or
+  session state, a graphical session, sudo, or user interaction.
+- A user who upgrades packages directly with dnf gets no Omarchy update at all, and is nudged by a
+  notification when migrations are pending.
 
 ## State and coordination files
 
@@ -23,15 +25,17 @@ The design goal is:
 | --- | --- | --- |
 | `${XDG_RUNTIME_DIR:-/tmp}/omarchy-update.lock` | user | Prevent overlapping update runs. Owned by `omarchy-update`; compatibility wrappers inherit/respect it. |
 | `/tmp/omarchy-update.log` | user | Transcript of `omarchy update`, used by `omarchy-update-analyze-logs`. |
+| `/tmp/omarchy-kernel-before` | user | Kernel version recorded before the transaction so `omarchy-update-restart` can tell whether the kernel moved. |
 | `~/.local/state/omarchy/current/` | user | Generated active theme, selected theme name, and current background symlink. |
 | `~/.local/state/omarchy/migrations/` | user | Per-user migration markers. |
+| `~/.local/state/omarchy/first-party/` | user | Version stamps for the first-party tools installed outside dnf. |
 | `~/.local/state/omarchy/reboot-required` | user | Optional reboot marker checked by `omarchy-update-restart`. |
 | `~/.local/state/omarchy/restart-*-required` | user | Optional service/app restart markers checked by `omarchy-update-restart`. |
 
 ## Migration layout
 
-See [`migrations.md`](migrations.md) for the full migration model, authoring
-guidelines, and troubleshooting notes.
+See [`migrations.md`](migrations.md) for the full migration model, authoring guidelines, and
+troubleshooting notes.
 
 Migrations live in:
 
@@ -51,15 +55,20 @@ Completion state is per-user:
 ~/.local/state/omarchy/migrations/<migration filename>
 ```
 
-Every user gets a chance to run every migration. Migrations run as the user;
-privileged work should invoke the appropriate helper or privilege prompt.
-Migrations must be idempotent; if one user already applied a machine-wide repair,
-the migration should no-op for other users.
+Every user gets a chance to run every migration. Migrations run as the user; privileged work should
+invoke the appropriate helper or privilege prompt. Migrations must be idempotent; if one user
+already applied a machine-wide repair, the migration should no-op for other users.
 
-For watchers and diagnostics, `omarchy-migrate --pending` prints pending
-migration names and exits `0` when any are pending. When no migrations are
-pending, it prints nothing and exits non-zero.
+Two things are specific to this fork:
 
+- A fresh install is not expected to replay history. `omarchy-finalize-user --first-install` stamps
+  every migration present at install time, so only migrations added afterwards ever run.
+- Migrations written for Arch are skipped rather than failed. `omarchy-migrate` detects pacman, yay,
+  mkinitcpio, limine and similar markers and records them under
+  `~/.local/state/omarchy/migrations/skipped/`.
+
+For watchers and diagnostics, `omarchy-migrate --pending` prints pending migration names and exits
+`0` when any are pending. When no migrations are pending, it prints nothing and exits non-zero.
 
 ## Path 1: `omarchy update`
 
@@ -68,54 +77,61 @@ High-level flow:
 ```text
 omarchy-update
   ├─ ensure transcript logging through script(1) → /tmp/omarchy-update.log
-  ├─ acquire update lock
+  ├─ stop with upgrade instructions if the release is older than Fedora 44
   ├─ confirm unless -y
   ├─ create snapper snapshot, if snapper is installed
-  └─ run update pipeline
-       ├─ block system sleep and temporarily enable shell stay-awake mode
-       ├─ omarchy-update-keyring
-       ├─ omarchy-update-system-pkgs
+  ├─ omarchy-update-git          (fetch + pull --autostash, refresh the version file)
+  └─ omarchy-update-perform
+       ├─ tag the terminal noidle so the session does not sleep mid-update
+       ├─ omarchy-update-time
+       ├─ omarchy-update-keyring        (no-op on Fedora; rpm owns repository keys)
+       ├─ record the running kernel version → /tmp/omarchy-kernel-before
+       ├─ omarchy-update-available-reset
+       ├─ omarchy-update-system-pkgs    (dnf upgrade --refresh, then dnf autoremove)
        ├─ omarchy-migrate
+       ├─ omarchy-update-manual-pkgs    (Hyprland core choice, Flatpaks, first-party tools)
        ├─ omarchy-hook post-update
-       ├─ omarchy-update-mise
        ├─ omarchy-update-analyze-logs
-       ├─ omarchy-update-available, then refresh/clear shell indicator
        ├─ omarchy-update-restart
-       └─ release sleep inhibitor and restore shell idle state, if changed
+       └─ clear the noidle tag
 ```
 
 Important behavior:
 
-- `omarchy update` checks/runs migrations in the same visible terminal via
-  `omarchy-migrate` after pacman finishes.
-- A failure should leave enough output in `/tmp/omarchy-update.log` and the
-  terminal transcript to debug.
+- The git pull happens **before** the package transaction, so migrations added upstream are present
+  by the time `omarchy-migrate` runs.
+- `omarchy-update-manual-pkgs` covers everything dnf cannot reach on its own: the Flatpak apps, the
+  first-party tools built or downloaded outside dnf, and the choice between `hyprland` and
+  `hyprland-git` (see [`../DEPENDENCIES.md`](../DEPENDENCIES.md)).
+- A failure should leave enough output in `/tmp/omarchy-update.log` and the terminal transcript to
+  debug.
 
-## Path 2: direct `sudo pacman -Syu` attempt
+## Path 2: direct `sudo dnf upgrade`
 
-High-level flow:
+Upstream guards `pacman -Syu` with an ALPM hook and redirects the user back to `omarchy update`.
+dnf has no equivalent hook mechanism, and this fork ships no guard: a direct `dnf upgrade` simply
+succeeds.
+
+What it does and does not do:
 
 ```text
-sudo pacman -Syu
-  ├─ pre-transaction guard aborts and tells the user to run omarchy update
-  └─ if explicitly bypassed, upgrades omarchy and related packages
-  └─ user session notices migration directory changes
-       ├─ omarchy-update-user-notify.path triggers, if enabled
-       ├─ omarchy-migrate-notify checks omarchy-migrate --pending
-       ├─ if this user has missing migration state, show notification
-       └─ click opens terminal: omarchy-migrate
+sudo dnf upgrade
+  ├─ upgrades Fedora packages, including the Hyprland stack
+  ├─ does NOT touch the Omarchy checkout, so no new migrations arrive
+  └─ does NOT run migrations, hooks, or restart checks
 ```
 
-Fallbacks:
+The consequence is milder than on Arch. Because Omarchy is a checkout rather than a package, a
+direct dnf upgrade cannot deliver Omarchy changes at all, so it cannot leave the system with new
+migrations pending. Pending migrations only appear after an `omarchy-update-git` pull.
 
-- `omarchy-first-run` enables the user notification path unit.
-- `omarchy-first-run` also invokes `omarchy-migrate-notify` on graphical
-  startup, so users who updated before the path unit existed still get prompted
-  if they have missing migration state.
+The notification path still exists for that case:
+
+- `omarchy-update-user-notify.path` watches the migration state directory and triggers
+  `omarchy-migrate-notify`.
+- `omarchy-first-run` enables the path unit and also invokes `omarchy-migrate-notify` on graphical
+  startup, so a user who updated before the unit existed still gets prompted.
 - The notifier is only a prompt. It does not run migrations in the background.
-- Direct pacman updates do not run `omarchy-hook post-update` unless the user
-  explicitly runs that hook; without a package-update marker, the only pending
-  state we can derive is missing per-user migration markers.
 
 ## Shell update indicator
 
@@ -125,79 +141,75 @@ The bar widget `omarchy.system-update` runs:
 omarchy-update-available
 ```
 
-`omarchy-update-available` checks the installed Omarchy package for updates:
-
-- `omarchy-dev`, when installed
-- otherwise `omarchy`, when installed
+Upstream checks whether the installed `omarchy` package has a newer version. Here there is no
+package, so the check is a git comparison: it counts how far `HEAD` is behind the checkout's
+upstream branch.
 
 Exit codes:
 
-- `0` — Omarchy updates are available; stdout is the update list.
-- non-zero — no Omarchy updates are available; stdout says Omarchy is up to date.
+- `0` — updates are available; stdout names how many commits behind which branch.
+- non-zero — up to date; stdout names the current branch and short commit.
 
-The widget runs this check on shell startup and every six hours. Clicking the
-update icon launches `omarchy-update` in a floating terminal.
+The widget runs this check on shell startup and every six hours. Clicking the update icon launches
+`omarchy-update` in a floating terminal. `omarchy-update-available-reset` clears the indicator
+through the shell's IPC (`omarchy-shell -q omarchy.system-update clear`).
 
 ## Update-related binaries
 
-This inventory is intentionally opinionated. Some commands are useful as stable
-leaf commands; others exist mostly because the old update flow accreted small
-scripts.
-
 | Binary | Current purpose | Keep? / Question |
 | --- | --- | --- |
-| `omarchy-update` | Public user command. Adds transcript logging, lock, confirmation, snapshot, sleep/idle inhibitors, package updates, migrations, hooks, update-state refresh, and restart checks. | **Keep.** This is the blessed entry point and owns the update pipeline. |
-| `omarchy-update-perform` | Hidden compatibility wrapper for `omarchy-update -y`. | **Temporary.** Keep only for old callers; new code should call `omarchy-update` directly. |
-| `omarchy-update-confirm` | Gum confirmation copy for `omarchy update`. | **Question.** Could be inlined into `omarchy-update`; separate file only helps keep copy isolated. |
-| `omarchy-update-keyring` | Ensures Omarchy keyring and Arch keyring are current before the main transaction. | **Keep, but review.** It uses targeted `pacman -Sy` for keyring bootstrapping; acceptable for this special case but should remain tightly scoped. |
-| `omarchy-update-system-pkgs` | Runs `sudo env OMARCHY_UPDATE_PACMAN=1 pacman -Syu --noconfirm` with targeted transition `--overwrite` entries so the ALPM guard allows the transaction and early package-layout conflicts are handled. | **Keep for now.** Small leaf command, clear/testable. |
-| `omarchy-migrate` | Public migration command. Waits for pacman, then runs all pending migrations for the current user. Supports `--pending`. | **Keep.** This replaces the discarded `omarchy-update-user-finalize` name and no longer needs `--force`. |
-| `omarchy-migrate-notify` | Internal notification helper for direct pacman updates. Uses `omarchy-migrate --pending` and shows notification only when this user has pending migrations. | **Keep internal/hidden.** Clear name now that the public command is `omarchy-migrate`. |
+| `omarchy-update` | Public user command. Adds transcript logging, the Fedora 44 gate, confirmation, snapshot, the git pull, and the update pipeline. | **Keep.** The blessed entry point. |
+| `omarchy-update-git` | Fetches and pulls the checkout with `--autostash`, then refreshes `version` from the highest merged release tag. | **Keep.** This is the fork's equivalent of the package transaction that delivers Omarchy itself. |
+| `omarchy-update-perform` | Runs the pipeline itself. Still callable directly by older callers. | **Keep.** No longer only a compatibility wrapper here - `omarchy-update` delegates the whole pipeline to it. |
+| `omarchy-update-confirm` | Gum confirmation copy for `omarchy update`. | **Question.** Could be inlined; a separate file only keeps the copy isolated. |
+| `omarchy-update-keyring` | Prints that Fedora manages repository keys through rpm metadata and exits. | **Question.** A deliberate no-op kept so upstream's pipeline shape still reads correctly. It costs one line of output per update. |
+| `omarchy-update-system-pkgs` | Runs `dnf upgrade -y --refresh`, then `dnf autoremove -y`. | **Keep.** Small leaf command, clear and testable. |
+| `omarchy-migrate` | Public migration command. Runs all pending migrations for the current user, skipping Arch-only ones. Supports `--pending`. | **Keep.** |
+| `omarchy-migrate-notify` | Notification helper. Uses `omarchy-migrate --pending` and notifies only when this user has pending migrations. | **Keep internal/hidden.** |
 | `omarchy-update-user-notify` | Hidden compatibility wrapper for `omarchy-migrate-notify`. | **Temporary.** Keep only for old callers. |
-| `omarchy-update-available` | Update checker for shell widget and post-update refresh. | **Keep.** Could eventually be renamed `omarchy-update-check`, but current name matches widget semantics. |
-| `omarchy-update-mise` | Runs `mise up` for mise-managed tools. | **Keep.** Mise-managed tools are intentionally part of the blessed update path. |
-| `omarchy-update-analyze-logs` | Scans `/tmp/omarchy-update.log` for known failure patterns, currently initramfs generation. | **Keep/expand.** Useful safety net; should grow only for high-signal checks. |
-| `omarchy-update-restart` | Prompts for reboot after kernel/Hyprland updates and restarts components with `restart-*-required` markers. | **Keep.** Important final step; may eventually include service-restart checks. |
-| `omarchy-update-firmware` | Manual firmware update command using fwupd. Not part of the normal update pipeline. | **Keep separate.** Firmware is not a routine system update step. |
-| `omarchy-update-time` | Restarts `systemd-timesyncd`. | **Question.** Not really an update command. Consider renaming/moving under system/time maintenance. |
+| `omarchy-update-manual-pkgs` | Everything dnf cannot reach: the Hyprland core choice, Flatpak apps, and the first-party tools. Stamp-guarded, so it is a no-op until a pin moves. | **Keep.** This is the fork's counterpart to upstream's `yay -Sua`. |
+| `omarchy-update-available` | Update checker for the shell widget, comparing the checkout against its upstream branch. | **Keep.** |
+| `omarchy-update-available-reset` | Clears the shell's update indicator through `omarchy-shell -q`. | **Keep.** |
+| `omarchy-update-mise` | Runs `mise up` for mise-managed tools. | **Question.** Present, but **not** part of the pipeline: `omarchy-update-perform` does not call it. Either wire it in or drop it. |
+| `omarchy-update-analyze-logs` | Scans `/tmp/omarchy-update.log` for known failure patterns. | **Keep/expand.** Useful safety net; should grow only for high-signal checks. |
+| `omarchy-update-restart` | Prompts for reboot after kernel/Hyprland updates and restarts components with `restart-*-required` markers. | **Keep.** |
+| `omarchy-update-firmware` | Manual firmware update command using fwupd. Not part of the normal pipeline. | **Keep separate.** |
+| `omarchy-update-time` | Restarts `systemd-timesyncd`. | **Question.** Not really an update command. Consider moving under system/time maintenance. |
 
 ## Closed decisions
 
-1. **Migrations run per-user from the update pipeline**
-   - `omarchy update` runs `omarchy-migrate` after pacman finishes.
-   - Package-time migration runners do not apply migrations inside pacman.
-   - Every user has per-user migration markers, and migrations must be
-     idempotent when they repair machine-wide state.
+1. **Omarchy updates come from the checkout, not from a package**
+   - `omarchy-update-git` pulls the branch; there is no `omarchy` rpm to upgrade.
+   - The update indicator is therefore a commit comparison, not a version comparison.
 
-2. **Migration notification naming**
+2. **Migrations run per-user from the update pipeline**
+   - `omarchy update` runs `omarchy-migrate` after the package transaction.
+   - A fresh install stamps existing migrations rather than replaying them.
+   - Arch-only migrations are recorded as skipped instead of failing the update.
+
+3. **Migration notification naming**
    - The real helper is `omarchy-migrate-notify`.
    - `omarchy-update-user-notify` remains only as a hidden compatibility wrapper.
 
-3. **Update pipeline ownership**
-   - `omarchy-update` owns the full update pipeline now.
-   - `omarchy-update-perform` is only a hidden compatibility wrapper for
-     `omarchy-update -y`.
+4. **No pacman guard**
+   - The ALPM hook and `omarchy-update-pacman-guard` were removed: dnf has no equivalent hook, and
+     a direct `dnf upgrade` cannot deliver Omarchy changes anyway.
 
-4. **Mise remains in the blessed update path**
-   - `omarchy-update-mise` intentionally runs as part of `omarchy update`.
-
-5. **Orphan cleanup stays in the update path for now**
-   - It is prompt-only and never removes packages noninteractively.
-
-6. **Direct pacman user follow-up is based on actual migration state**
-   - Direct `sudo pacman -Syu` no longer uses a fake user-update marker.
-   - User notifications are shown only when `omarchy-migrate --pending` finds
-     missing per-user migration state.
+5. **Orphan cleanup is part of the package step**
+   - `dnf autoremove` runs inside `omarchy-update-system-pkgs`; there is no separate orphan command.
 
 ## Remaining concerns
 
-1. **Pacman guard scope**
-   - The guard detects direct pacman sysupgrade invocations and allows Omarchy
-     commands that set `OMARCHY_UPDATE_PACMAN=1`.
-   - We may regret blocking some legitimate package-manager frontends or
-     maintenance flows. Keep an eye on what should be allowed versus redirected
-     to `omarchy update`.
+1. **`.rpmnew` / `.rpmsave` handling is missing**
+   - The Fedora counterpart of upstream's pacnew concern. dnf leaves these behind when a package
+     ships a changed config file that was edited locally, and nothing currently surfaces them after
+     an update.
 
-2. **Pacnew/pacsave handling is still missing**
-   - Package-backed Omarchy should warn about or help process `.pacnew` and
-     `.pacsave` files after updates.
+2. **A direct `dnf upgrade` can move the Hyprland stack without Omarchy noticing**
+   - The compositor and its libraries come from a COPR that rebuilds continuously. Upgrading them
+     outside `omarchy update` skips `omarchy-update-manual-pkgs`, which is what would otherwise
+     reconcile the `hyprland` / `hyprland-git` choice.
+
+3. **`omarchy-update-mise` is orphaned**
+   - It exists and works, but nothing calls it. Decide whether mise-managed tools belong in the
+     blessed update path.
