@@ -5,10 +5,22 @@
 
 set -e
 
+OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
+
 # Install voxtype and configure it for use.
 
 if gum confirm "Install Voxtype + AI model (~150MB) to enable dictation?"; then
-  omarchy-pkg-add wtype voxtype-bin
+  # wtype is a Fedora package; voxtype is not. Upstream installs the AUR's voxtype-bin, which dnf
+  # cannot resolve - the command failed here with "No match for argument: voxtype-bin" even though
+  # the binary was already present. install/helpers/fedora-first-party.sh puts the pinned aarch64
+  # release binary in /usr/local/bin, so only fetch it if it is somehow missing.
+  omarchy-pkg-add wtype
+
+  if ! omarchy-cmd-present voxtype; then
+    bash "$OMARCHY_INSTALL/helpers/fedora-first-party.sh" ||
+      { echo "Could not install voxtype." >&2; exit 1; }
+  fi
 
   # Setup voxtype
   mkdir -p ~/.config/voxtype
