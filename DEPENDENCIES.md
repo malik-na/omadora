@@ -75,10 +75,11 @@ bump. Recipes track the upstream `omacom-io/omarchy-pkgs` PKGBUILDs. Binaries la
 | `hyprland-preview-share-picker` | [`WhySoBad/hyprland-preview-share-picker`](https://github.com/WhySoBad/hyprland-preview-share-picker) v0.2.1 | cargo source build (links a pinned `hyprland-protocols`) |
 
 The share-picker is xdg-desktop-portal-hyprland's `custom_picker_binary` (see `config/hypr/xdph.conf`).
-Its cargo build pulls the gtk4-rs stack and is memory-heavy - it needs roughly 2 GB+ free to link, so
-a very low-memory machine may need a swap file. Runtime libraries for all of these tools are ordinary
-Fedora packages and are listed in `install/omarchy-base.packages.fedora` under "First-party tool
-runtime deps".
+Its cargo build pulls the gtk4-rs stack and is memory-heavy: a parallel release build needs several GB
+of RAM to link (a 4-core build wanted about 6 GB in a container - 2 GB is not enough even single-job),
+so a low-memory machine should add swap or reduce cargo jobs. Runtime libraries for all of these tools
+are ordinary Fedora packages and are listed in `install/omarchy-base.packages.fedora` under
+"First-party tool runtime deps".
 
 `asdcontrol` (upstream's Apple Studio Display / Pro Display XDR brightness tool) is **dropped**: it
 only drives external Apple displays over USB, which an Asahi laptop's built-in panel never uses.
@@ -124,6 +125,7 @@ covers what dnf cannot reach:
 |---|---|
 | Fedora repos and every COPR | `dnf upgrade` |
 | Flatpak apps (Typora, LocalSend, Obsidian, Moonlight) | `flatpak update --user`, in `omarchy-update-manual-pkgs`. Upstream gets these from the AUR, so `yay -Sua` swept them up; on Fedora nothing was updating them at all until this step existed. |
+| First-party tools (aether, cliamp, omacut, omawrite, tensaku, voxtype, tobi-try, share-picker) | `install/helpers/fedora-first-party.sh`, re-run from `omarchy-update-manual-pkgs`. It is version-pinned and stamped, so it only redownloads or rebuilds a tool when its pin in that script moves. |
 | npx-wrapped npm tools (codex, gemini, copilot, pi, ghui, playwright) | each run resolves the package fresh (`npx --prefer-online`), so they self-update |
 | mise runtimes (node, bun, deno, zls) | **not updated automatically.** `mise use -g <tool>@latest` re-resolves when run by hand. |
 | `uv`, `terminaltexteffects` (pip), 1Password, LazyVim starter, JetBrainsMono Nerd Font | **not updated automatically** - they are installed once |

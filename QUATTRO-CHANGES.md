@@ -59,10 +59,11 @@ If you had personal bindings in `~/.config/hypr/*.conf`, they need to move to th
 
 - First-party tools added upstream: **aether** (wallpaper theming), **omacut** (video trimmer),
   **omawrite** (writing), **tensaku** (screenshot annotation), **cliamp** (music player),
-  **tobi-try** (the `try` command), and **voxtype** (voice dictation). Upstream ships them as Arch
-  packages; each has a working aarch64 source (an upstream prebuilt binary or a small source build),
-  but the step that installs them on this Fedora port has not landed yet, so **they are not installed
-  by default today**. See [DEPENDENCIES.md](DEPENDENCIES.md) for the exact source of each.
+  **tobi-try** (the `try` command), **voxtype** (voice dictation), and **hyprland-preview-share-picker**
+  (the screen-share picker). Upstream ships them as Arch packages; none is a Fedora/COPR package, so
+  this port installs each from its aarch64 source — an upstream prebuilt binary or a small source build
+  — through `install/helpers/fedora-first-party.sh` (version-pinned, and kept current by
+  `omarchy-update-manual-pkgs`). See [DEPENDENCIES.md](DEPENDENCIES.md) for the exact source of each.
 - **`asdcontrol` is dropped.** Upstream uses it to set the brightness of *external* Apple displays
   (Studio Display / Pro Display XDR) over USB; an Asahi laptop's built-in screen does not need it.
 
