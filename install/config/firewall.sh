@@ -12,15 +12,28 @@ if ! systemctl is-enabled firewalld >/dev/null 2>&1; then
   systemctl enable firewalld
 fi
 
+# firewall-cmd reaches the daemon over D-Bus and exits 252 ("FirewallD is not running") when it is
+# down. That is the normal case here: the packaging step only just installed firewalld and this
+# script deliberately enables it without starting it, and an ISO chroot has no systemd at all.
+# firewall-offline-cmd edits the same permanent configuration directly, so use it when the daemon is
+# not up and reload only when it is.
+if systemctl is-active firewalld >/dev/null 2>&1; then
+  firewall_permanent() { firewall-cmd --permanent "$@"; }
+  firewalld_running=1
+else
+  firewall_permanent() { firewall-offline-cmd "$@"; }
+  firewalld_running=0
+fi
+
 # LocalSend discovery and transfer ports.
-firewall-cmd --permanent --add-port=53317/udp
-firewall-cmd --permanent --add-port=53317/tcp
+firewall_permanent --add-port=53317/udp
+firewall_permanent --add-port=53317/tcp
 
 # Let Docker containers reach the host's DNS resolver on the docker0 bridge.
-firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="172.16.0.0/12" destination address="172.17.0.1" port protocol="udp" port="53" accept'
+firewall_permanent --add-rich-rule='rule family="ipv4" source address="172.16.0.0/12" destination address="172.17.0.1" port protocol="udp" port="53" accept'
 
-# Apply the permanent rules now if firewalld is running (live install). In a
-# chroot it isn't, and the rules take effect when the installed system boots.
-if systemctl is-active firewalld >/dev/null 2>&1; then
+# Apply the permanent rules now if firewalld is running (live install). Otherwise they take effect
+# when the installed system boots and firewalld starts.
+if ((firewalld_running)); then
   firewall-cmd --reload
 fi
