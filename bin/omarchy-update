@@ -16,7 +16,7 @@ fi
 
 # Fedora 44 gate: on an older release, print the upgrade instructions and stop cleanly - before the
 # snapshot, the git pull and the pipeline. omarchy-update-perform refuses too (exit 1) for direct and
-# boot.sh callers and the tests, but here we exit 0 so the GUI update flow (menu / mako notification)
+# boot.sh callers and the tests, but here we exit 0 so the GUI update flow (menu / desktop notification)
 # shows only the instructions instead of the generic "Something went wrong" from the ERR trap below.
 OMARCHY_INSTALL="${OMARCHY_INSTALL:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/install}"
 if [[ -f "$OMARCHY_INSTALL/helpers/distro.sh" ]]; then
