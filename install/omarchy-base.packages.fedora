@@ -181,6 +181,8 @@ jetbrains-mono-fonts
 cascadia-mono-nf-fonts
 fontawesome4-fonts
 fontawesome-fonts-web
+# ter-v16n, the console font install/config/console-font.sh sets on the TTY.
+terminus-fonts-console
 
 # Input Methods
 fcitx5
