@@ -57,8 +57,9 @@ If you had personal bindings in `~/.config/hypr/*.conf`, they need to move to th
 
 ## 5. New tools
 
-- First-party tools added: **aether, cliamp, omacut, omawrite, tensaku, tobi-try**, and **voxtype**
-  (voice dictation).
+- First-party tools added upstream: **aether, cliamp, omacut, omawrite, tensaku, tobi-try**, and
+  **voxtype** (voice dictation). These ship as Arch packages upstream and have **no Fedora build
+  yet**, so this port does not install them until they are packaged for Fedora.
 
 ## 6. Paths that moved
 
@@ -70,7 +71,10 @@ Upstream quattro also switches Omarchy to distro **packages** and to Arch-only p
 Asahi fork deliberately keeps its own way:
 
 - **Delivery stays git-clone + `dnf`/COPR** — not the pacman package model.
-- **`dnf` / COPR**, never pacman / AUR / `yay`.
+- **`dnf` / COPR**, never pacman / AUR / `yay`. The Hyprland stack (including `uwsm` and
+  `gpu-screen-recorder`) comes from the single `lionheartp/Hyprland` COPR; the old
+  `solopasha/hyprland` and `erikreider/swayosd` COPRs are dropped (unmaintained / retired stack).
+  See [DEPENDENCIES.md](DEPENDENCIES.md) for every source.
 - **`iwd`** stays as the Wi-Fi backend for NetworkManager (a deliberate fork choice).
 - **`firewalld`**, not UFW.
 - **aarch64 / Apple Silicon only** — Intel, NVIDIA, Framework, ASUS, Surface, Dell, and Apple T2

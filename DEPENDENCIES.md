@@ -4,8 +4,8 @@ Every external source this repository pulls from, in one place. If something her
 or changes hands, the installer or an update breaks - so this is the list to check first when either
 one fails, and the list to review when you care about what runs on your machine.
 
-Scope: Fedora Asahi Remix 44+, aarch64. Everything below is fetched at install time or during
-`omarchy-update`; nothing is vendored into this repository.
+Scope: Fedora Asahi Remix 44+, aarch64, on the quattro line. Everything below is fetched at install
+time or during `omarchy-update`; nothing is vendored into this repository.
 
 ---
 
@@ -15,7 +15,7 @@ The default source for almost everything. Nothing special is configured.
 
 | Repository | Used for |
 |---|---|
-| `fedora`, `updates` (Fedora 44, aarch64) | the bulk of the package set - Chromium, Waybar, Alacritty, SDDM, PipeWire, fonts, snapper, Docker, Java, and so on. See `install/omarchy-base.packages.fedora` and `install/omarchy-other.packages.fedora`. |
+| `fedora`, `updates` (Fedora 44, aarch64) | the bulk of the package set - **Quickshell** (the whole bar/launcher/OSD shell, an official Fedora package), Chromium, foot, Alacritty, SDDM, PipeWire, fonts, snapper, Docker, Java, and so on. See `install/omarchy-base.packages.fedora` and `install/omarchy-other.packages.fedora`. |
 
 **Fedora 44 is required.** Several packages the older lists used no longer exist on 43, and the
 Hyprland build Omarchy targets is only published for the 44 chroot. Every entry point stops on an
@@ -30,7 +30,7 @@ by Fedora, and each one is a person who can stop maintaining it.
 
 | COPR | What it provides | Why we need it |
 |---|---|---|
-| [`lionheartp/Hyprland`](https://copr.fedorainfracloud.org/coprs/lionheartp/Hyprland/) | `hyprland` (0.55.x), `hyprlock`, `hypridle`, `hyprsunset`, `hyprland-qt-support`, `xdg-desktop-portal-hyprland`, `uwsm` | Fedora does not ship Hyprland for aarch64. This is the build that works on Apple Silicon, and the only one with a Fedora 44 chroot. |
+| [`lionheartp/Hyprland`](https://copr.fedorainfracloud.org/coprs/lionheartp/Hyprland/) | `hyprland` (0.55.x), `hyprsunset`, `hyprpicker`, `hyprland-qt-support`, `hyprland-guiutils`, `xdg-desktop-portal-hyprland`, `uwsm`, `gpu-screen-recorder` | Fedora does not ship Hyprland for aarch64. This is the build that works on Apple Silicon, and the only one with a Fedora 44 chroot. It is pinned to `priority=10` (with core GTK/Pango/Cairo excluded) so dnf prefers it for exactly these packages. |
 | [`atim/starship`](https://copr.fedorainfracloud.org/coprs/atim/starship/) | `starship` | prompt |
 | [`atim/lazygit`](https://copr.fedorainfracloud.org/coprs/atim/lazygit/) | `lazygit` | git TUI |
 
@@ -38,35 +38,26 @@ by Fedora, and each one is a person who can stop maintaining it.
 
 | COPR | What it provides | Notes |
 |---|---|---|
-| [`solopasha/hyprland`](https://copr.fedorainfracloud.org/coprs/solopasha/hyprland/) | `satty`, `hyprland-qtutils` | It also builds its own Hyprland. That is why it is pinned to `priority=90` and has an `excludepkgs` list: DNF must never mix its Hyprland with lionheartp's. |
-| [`erikreider/swayosd`](https://copr.fedorainfracloud.org/coprs/erikreider/swayosd/) | `swayosd` | on-screen volume/brightness display; the only source |
-| [`nclundell/fedora-extras`](https://copr.fedorainfracloud.org/coprs/nclundell/fedora-extras/) | `bluetui`, `bottom`, `lazydocker`, `nushell`, `yazi`, and others | assorted TUIs |
+| [`nclundell/fedora-extras`](https://copr.fedorainfracloud.org/coprs/nclundell/fedora-extras/) | `lazydocker`, `bottom`, `nushell`, `yazi`, and others | assorted TUIs |
 | [`scottames/ghostty`](https://copr.fedorainfracloud.org/coprs/scottames/ghostty/) | `ghostty` | only needed by `omarchy-install-terminal ghostty`. The default terminal is alacritty, so this must never be required - it used to be, pointing at a COPR that did not exist, and that alone killed every install. |
 
-Both Hyprland COPRs build the same package names. `install/helpers/fedora-copr-protect.sh` is the one
-place that defines the priority and exclude rules that keep them apart; the installer and the repair
-migration both use it.
+Two COPRs the 3.8.x line used are gone on purpose: `solopasha/hyprland` (unmaintained - no builds
+since 2025-10 - and its only contribution, satty, is retired by quattro) and `erikreider/swayosd`
+(swayosd is retired by quattro; the shell draws the OSD). `install/helpers/fedora-copr-protect.sh`
+lists both as dead repos so upgrades remove them from existing installs.
 
 ## 3. Built from source at install time
 
-Not packaged for Fedora at all, in any repository or COPR. The installer compiles them, which is why
-a first install takes a while.
-
-| Software | Source | Version | Built with |
-|---|---|---|---|
-| Walker | <https://github.com/abenz1267/walker> | pinned `v2.16.2` | Rust / cargo |
-| Elephant + its 10 provider plugins | <https://github.com/abenz1267/elephant> | pinned `v2.21.0` | Go (`-buildmode=plugin`) |
-
-Both versions are pinned in `install/helpers/fedora-walker-elephant.sh` and recorded in a stamp at
-`~/.local/state/omarchy/walker-elephant-version`. `omarchy-update` rebuilds them only when the pin
-moves - nothing else can upgrade a source build. Elephant's providers are Go plugins and are
-version-locked to the binary, so they are always rebuilt together with it.
+The 3.8.x line compiled walker, elephant, impala and wiremix here; quattro retires all of them in
+favour of the Quickshell shell, so the only source build left is:
 
 | Software | Source | Version | Notes |
 |---|---|---|---|
-| `impala` (Wi-Fi TUI) | crates.io | pinned `0.7.3` | `cargo install` |
-| `wiremix` (audio TUI) | crates.io | pinned `0.11.0` | `cargo install`; needs `pipewire-devel` |
 | `grub-btrfs` | <https://github.com/Antynea/grub-btrfs> | default branch | snapshot boot entries |
+
+quattro's first-party tools (`aether`, `cliamp`, `omacut`, `omawrite`, `tensaku`, `tobi-try`,
+`voxtype`, `asdcontrol`) ship as Arch packages upstream and have **no Fedora build yet** - they are
+not installed by this port until they are packaged or a build step lands.
 
 ## 4. Binaries and installers fetched over the network
 
@@ -77,7 +68,7 @@ deserve a second look.
 |---|---|---|
 | `mise` (runtime manager) | <https://mise.jdx.dev/install.sh> | **piped to a shell** |
 | `uv` (Python tooling) | <https://astral.sh/uv/install.sh> | **piped to a shell**, upstream Omarchy's own step |
-| `cliamp` (music TUI, optional) | <https://github.com/bjarneo/cliamp> | **piped to a shell**, pinned to tag `v1.57.1`, non-fatal on failure |
+| JetBrainsMono Nerd Font | <https://github.com/ryanoasis/nerd-fonts> latest release | tarball into `~/.local/share/fonts`; the shell, foot and the SDDM theme render with it and Fedora only packages the unpatched font |
 | `lazydocker` | `nclundell/fedora-extras` COPR (package), GitHub release only as fallback | it used to come from GitHub as a loose binary in `/usr/local/bin`, which nothing ever updated |
 | `gum` (installer UI) | Fedora, with a GitHub release as fallback | dnf first. The old code went to GitHub first, with a pinned asset that no longer exists - every install started with a 404 and ran with no UI. |
 | 1Password | <https://downloads.1password.com/linux/tar/stable/aarch64/> | only via `omarchy-install-1password` |
@@ -88,7 +79,9 @@ deserve a second look.
 
 | Remote | Apps |
 |---|---|
-| [Flathub](https://flathub.org) | Typora (`io.typora.Typora`), LocalSend (`org.localsend.localsend_app`) |
+| [Flathub](https://flathub.org) | Typora (`io.typora.Typora`), LocalSend (`org.localsend.localsend_app`), Obsidian (`md.obsidian.Obsidian`), Moonlight (`com.moonlight_stream.Moonlight`) |
+
+All are installed `--user`, and `omarchy-remove-preinstalls` removes them the same way.
 
 ## 6. Language runtimes and their package registries
 
@@ -106,16 +99,16 @@ covers what dnf cannot reach:
 | Source | Updated by |
 |---|---|
 | Fedora repos and every COPR | `dnf upgrade` |
-| Flatpak apps (Typora, LocalSend) | `flatpak update`, in `omarchy-update-manual-pkgs`. Upstream gets these from the AUR, so `yay -Sua` swept them up; on Fedora nothing was updating them at all until this step existed. |
-| walker, elephant, impala, wiremix | rebuilt by `omarchy-update-manual-pkgs`, but **only when their pinned version changes** - a source build is invisible to every package manager, so the pin in the repo is what moves them |
+| Flatpak apps (Typora, LocalSend, Obsidian, Moonlight) | `flatpak update --user`, in `omarchy-update-manual-pkgs`. Upstream gets these from the AUR, so `yay -Sua` swept them up; on Fedora nothing was updating them at all until this step existed. |
 | npx-wrapped npm tools (codex, gemini, copilot, pi, ghui, playwright) | each run resolves the package fresh (`npx --prefer-online`), so they self-update |
 | mise runtimes (node, bun, deno, zls) | **not updated automatically.** `mise use -g <tool>@latest` re-resolves when run by hand. |
-| `uv`, `terminaltexteffects` (pip), 1Password, LazyVim starter | **not updated automatically** - they are installed once |
+| `uv`, `terminaltexteffects` (pip), 1Password, LazyVim starter, JetBrainsMono Nerd Font | **not updated automatically** - they are installed once |
 
 ## 8. What this repository does *not* use
 
 No AUR, no `pacman`/`yay`/`paru`, no `mkinitcpio`, no `limine` - those are upstream Omarchy's, and
 every path here goes through `dnf`, `rpm` and COPR instead. Boot and initramfs are `dracut` and
-`grub-btrfs`. The terminal is `alacritty`, not ghostty. x86-only hardware support (NVIDIA, Intel,
-Dell, ASUS, Lenovo, Framework) is present but never wired in: it is guarded by `omarchy-hw-*` checks
-that cannot match on Apple Silicon.
+`grub-btrfs`. The terminal is `alacritty`, not ghostty. No waybar, walker, elephant, mako or swayosd
+either - quattro retired them, and the one Quickshell shell does all of it. x86-only hardware support
+(NVIDIA, Intel, Dell, ASUS, Lenovo, Framework) is present but never wired in: it is guarded by
+`omarchy-hw-*` checks that cannot match on Apple Silicon.
