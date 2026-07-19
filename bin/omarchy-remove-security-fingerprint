@@ -34,6 +34,7 @@ remove_pam_config
 remove_lock_fingerprint_pam
 
 echo "Removing fingerprint packages..."
-omarchy-pkg-drop fprintd libfprint-git
+# libfprint, not the AUR's libfprint-git that omarchy-setup-security-fingerprint used to install.
+omarchy-pkg-drop fprintd libfprint
 
 echo -e "\e[32mFingerprint authentication has been completely removed.\e[0m"
