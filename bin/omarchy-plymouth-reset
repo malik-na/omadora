@@ -10,8 +10,11 @@ sudo plymouth-set-default-theme omarchy
 
 if omarchy-cmd-present limine-mkinitcpio; then
   sudo limine-mkinitcpio
-else
+elif omarchy-cmd-present mkinitcpio; then
   sudo mkinitcpio -P
+else
+  # Fedora builds its initramfs with dracut.
+  sudo dracut --regenerate-all --force
 fi
 
 omarchy-refresh-sddm

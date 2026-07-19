@@ -33,6 +33,12 @@ create)
   echo
   ;;
 restore)
-  sudo limine-snapper-restore
+  if omarchy-cmd-present limine-snapper-restore; then
+    sudo limine-snapper-restore
+  else
+    # Fedora Asahi has no limine; restoring means rolling the root subvolume back with snapper.
+    echo "Pick a snapshot with 'sudo snapper list', then run 'sudo snapper rollback <number>' and reboot."
+    exit 1
+  fi
   ;;
 esac
