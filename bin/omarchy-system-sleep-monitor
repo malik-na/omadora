@@ -4,6 +4,12 @@
 # omarchy:group=system
 # omarchy:hidden=true
 
+# omarchy-sleep-lock.service is WantedBy=graphical-session.target and can start before the session
+# environment has been imported into the systemd user manager. With OMARCHY_PATH unset the paths
+# below resolved to /bin/omarchy-*, and the service died with 127 until a restart happened to catch
+# the imported environment. Default it the same way the rest of the fork's git-clone commands do.
+OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+
 monitor_command='exec dbus-monitor --system "type='\''signal'\'',sender='\''org.freedesktop.login1'\'',interface='\''org.freedesktop.login1.Manager'\'',member='\''PrepareForSleep'\''"'
 
 consume_sleep_events() {
