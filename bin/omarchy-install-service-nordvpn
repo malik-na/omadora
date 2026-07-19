@@ -3,8 +3,31 @@
 # omarchy:summary=Install the NordVPN service with optional GUI.
 # omarchy:requires-sudo=true
 
+set -e
+
+# Upstream installs the AUR's nordvpn-bin. Fedora has no AUR and no nordvpn package, so this comes
+# from NordVPN's own RPM repository, which officially supports Fedora 32+ and publishes aarch64
+# builds alongside x86_64.
+#
+# NordVPN's documented method pipes https://downloads.nordcdn.com/apps/linux/install.sh into a
+# shell, and that script then installs with --nogpgcheck. The repository is properly signed, so set
+# it up directly instead: no remote code runs, and signature checking stays on.
+NORDVPN_KEY_URL="https://repo.nordvpn.com/gpg/nordvpn_public.asc"
+
 echo "Installing NordVPN..."
-omarchy-pkg-aur-add nordvpn-bin
+
+sudo rpm --import "$NORDVPN_KEY_URL"
+
+cat <<EOF | sudo tee /etc/yum.repos.d/nordvpn.repo >/dev/null
+[nordvpn]
+name=NordVPN
+baseurl=https://repo.nordvpn.com/yum/nordvpn/centos/\$basearch
+enabled=1
+gpgcheck=1
+gpgkey=$NORDVPN_KEY_URL
+EOF
+
+sudo dnf install -y nordvpn
 
 echo "Enabling NordVPN daemon..."
 sudo systemctl enable --now nordvpnd

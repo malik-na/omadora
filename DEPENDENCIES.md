@@ -55,6 +55,17 @@ since 2025-10 - and its only contribution, satty, is retired by quattro) and `er
 (swayosd is retired by quattro; the shell draws the OSD). `install/helpers/fedora-copr-protect.sh`
 lists both as dead repos so upgrades remove them from existing installs.
 
+### Vendor repositories - added only when the user opts in
+
+| Repository | Provides | Added by |
+|---|---|---|
+| [`repo.nordvpn.com`](https://repo.nordvpn.com/yum/nordvpn/centos/) | `nordvpn` | `omarchy-install-service-nordvpn` |
+
+Not a COPR and not enabled by default: nothing installs it until the user picks NordVPN from the
+menu. NordVPN supports Fedora 32+ officially and publishes aarch64 builds. Their documented method
+pipes an install script into a shell and then installs with `--nogpgcheck`; the repository is
+signed, so the command writes the repo file itself and leaves `gpgcheck=1` on.
+
 ## 3. Built from source at install time
 
 The 3.8.x line compiled walker, elephant, impala and wiremix here; quattro retires all of them in
