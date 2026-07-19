@@ -21,7 +21,7 @@ clear
 echo -e "\n$ansi_art\n"
 
 echo "🔐 omarchy-mac-fedora installation requires administrator access..."
-if ! sudo -v </dev/tty; then
+if ! sudo -v; then
   echo "❌ Could not obtain sudo access. Run as a regular user in the 'wheel' group."
   exit 1
 fi
