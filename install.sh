@@ -113,6 +113,7 @@ run_user "$OMARCHY_INSTALL/packaging/base.sh"
 run_user "$OMARCHY_INSTALL/packaging/other.sh"
 run_user "$OMARCHY_INSTALL/packaging/fonts.sh"
 run_user "$OMARCHY_INSTALL/helpers/fedora-manual.sh"
+run_user "$OMARCHY_INSTALL/helpers/fedora-first-party.sh"
 run_user "$OMARCHY_INSTALL/helpers/fedora-grub-btrfs.sh"
 
 # --- System configuration ----------------------------------------------------

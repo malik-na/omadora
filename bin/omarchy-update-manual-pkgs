@@ -4,9 +4,11 @@
 # omarchy:requires-sudo=true
 
 # On Arch, `yay -Sua` sweeps up everything outside the distro's repositories. This is the Fedora
-# equivalent. Since quattro retired the source-built launcher stack (walker, elephant, and the cargo
-# TUIs), the only thing left that a plain `dnf upgrade` can never move is Flatpak: Typora, LocalSend,
-# Obsidian and Moonlight come from Flathub, and nothing else updates them.
+# equivalent: the two things a plain `dnf upgrade` can never move. Flatpak apps (Typora, LocalSend,
+# Obsidian, Moonlight from Flathub), and the first-party tools that ship no Fedora/COPR aarch64
+# package and come from upstream release binaries or source builds (aether, cliamp, omacut, omawrite,
+# tensaku, voxtype, tobi-try, hyprland-preview-share-picker). fedora-first-party.sh is version-pinned
+# and stamp-guarded, so it only does work when a pin has moved.
 
 OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
 OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
@@ -23,4 +25,9 @@ fi
 if command -v flatpak >/dev/null 2>&1 && [[ -n "$(flatpak list --app --user --columns=application 2>/dev/null)" ]]; then
   echo -e "\e[32m\nUpdate Flatpak apps\e[0m"
   flatpak update -y --user || echo "[WARNING] Flatpak update failed - continuing"
+fi
+
+if [[ -f "$OMARCHY_INSTALL/helpers/fedora-first-party.sh" ]]; then
+  echo -e "\e[32m\nUpdate first-party tools\e[0m"
+  bash "$OMARCHY_INSTALL/helpers/fedora-first-party.sh" || echo "[WARNING] First-party tool update failed - continuing"
 fi

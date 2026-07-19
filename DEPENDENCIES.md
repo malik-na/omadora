@@ -58,20 +58,27 @@ favour of the Quickshell shell, so the only source build left is:
 ### quattro's first-party tools
 
 quattro adds first-party tools that ship as Arch packages upstream (built from
-`omacom-io/omarchy-pkgs`); none are Fedora packages. Each has a working aarch64 source this port can
-use, but the install step that wires them in has not landed yet, so **they are not installed by
-default today**:
+`omacom-io/omarchy-pkgs`); none are Fedora packages. `install/helpers/fedora-first-party.sh` installs
+them from the aarch64 sources below - release binaries or source builds, version-pinned and stamped
+under `~/.local/state/omarchy/first-party` so re-runs and `omarchy-update-manual-pkgs` only act on a
+bump. Recipes track the upstream `omacom-io/omarchy-pkgs` PKGBUILDs. Binaries land in `/usr/local/bin`.
 
 | Tool | aarch64 source | Mechanism |
 |---|---|---|
-| `aether` (wallpaper theming) | [`bjarneo/aether`](https://github.com/bjarneo/aether) v4.27.2 | prebuilt `aether-linux-arm64` |
+| `aether` (wallpaper theming) | [`bjarneo/aether`](https://github.com/bjarneo/aether) v4.27.2 | prebuilt `aether-linux-arm64` + `aether-wp-linux-arm64` |
 | `omacut` (video trimmer) | [`omacom-io/omacut`](https://github.com/omacom-io/omacut) v0.1.2 | Qt6 source build (`./bin/build`) |
 | `omawrite` (Markdown editor) | [`omacom-io/omawrite`](https://github.com/omacom-io/omawrite) v0.2.0 | Qt6 source build (`./bin/build`) |
-| `tensaku` (screenshot annotation) | [`jondkinney/tensaku`](https://github.com/jondkinney/tensaku) v0.26.6 | prebuilt aarch64 tarball (or cargo) |
-| `cliamp` (music player) | [`bjarneo/cliamp`](https://github.com/bjarneo/cliamp) | prebuilt `cliamp-linux-arm64` (or go build) |
-| `voxtype` (dictation) | [`peteonrails/voxtype`](https://github.com/peteonrails/voxtype) v0.7.5 | prebuilt `…-aarch64-cpu` (v1.0+ is macOS-only) |
-| `tobi-try` (`try`) | [`tobi/try-cli`](https://github.com/tobi/try-cli) v1.5.3 | prebuilt `try-aarch64-linux.tar.gz` |
-| `hyprland-preview-share-picker` | [`WhySoBad/hyprland-preview-share-picker`](https://github.com/WhySoBad/hyprland-preview-share-picker) v0.2.1 | cargo build |
+| `tensaku` (screenshot annotation) | [`jondkinney/tensaku`](https://github.com/jondkinney/tensaku) v0.26.6 | prebuilt `tensaku-v0.26.6-aarch64.tar.gz` |
+| `cliamp` (music player) | [`bjarneo/cliamp`](https://github.com/bjarneo/cliamp) v1.57.1 | prebuilt `cliamp-linux-arm64` (codecs statically linked) |
+| `voxtype` (dictation) | [`peteonrails/voxtype`](https://github.com/peteonrails/voxtype) v0.7.5 | prebuilt `…-aarch64-cpu` (v1.0+ dropped Linux aarch64) |
+| `tobi-try` (`try`) | [`tobi/try`](https://github.com/tobi/try) v1.8.1 | Ruby script from a pinned commit (needs `ruby`) |
+| `hyprland-preview-share-picker` | [`WhySoBad/hyprland-preview-share-picker`](https://github.com/WhySoBad/hyprland-preview-share-picker) v0.2.1 | cargo source build (links a pinned `hyprland-protocols`) |
+
+The share-picker is xdg-desktop-portal-hyprland's `custom_picker_binary` (see `config/hypr/xdph.conf`).
+Its cargo build pulls the gtk4-rs stack and is memory-heavy - it needs roughly 2 GB+ free to link, so
+a very low-memory machine may need a swap file. Runtime libraries for all of these tools are ordinary
+Fedora packages and are listed in `install/omarchy-base.packages.fedora` under "First-party tool
+runtime deps".
 
 `asdcontrol` (upstream's Apple Studio Display / Pro Display XDR brightness tool) is **dropped**: it
 only drives external Apple displays over USB, which an Asahi laptop's built-in panel never uses.

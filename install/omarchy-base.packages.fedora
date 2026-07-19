@@ -39,8 +39,10 @@ yaru-icon-theme
 yaru-gtk3-theme
 yaru-gtk4-theme
 yaru-gtksourceview-theme
-# hyprland-preview-share-picker: no Fedora or COPR build for aarch64; screen sharing uses
-# xdg-desktop-portal-hyprland's built-in picker instead.
+# First-party tools (aether, cliamp, omacut, omawrite, tensaku, voxtype, tobi-try,
+# hyprland-preview-share-picker) ship no Fedora/COPR aarch64 package. They are installed from upstream
+# release binaries or source builds by install/helpers/fedora-first-party.sh; their runtime libraries
+# are listed further down under "First-party tool runtime deps".
 # Retired by quattro and deliberately absent: waybar, walker, elephant, mako, swayosd, swaybg,
 # hypridle, hyprlock, wayfreeze, satty, pavucontrol, playerctl, wf-recorder, impala, bluetui.
 # The polkit agent is now the shell's own dialog, so lxpolkit is gone too.
@@ -183,3 +185,25 @@ fcitx5
 fcitx5-gtk
 fcitx5-qt5
 fcitx5-qt6
+
+# First-party tool runtime deps
+# Shared libraries the first-party tools link against. The tools themselves are installed from
+# upstream release binaries / source builds by install/helpers/fedora-first-party.sh, but their
+# runtime dependencies are ordinary Fedora packages and belong here so dnf resolves them up front.
+# (wtype, wl-clipboard and slurp - also first-party runtime deps - are already listed above.)
+webkit2gtk4.1
+gtk3
+gtk-layer-shell
+gstreamer1
+gstreamer1-plugins-good
+ffmpeg-free
+alsa-lib
+qt6-qtbase
+qt6-qtdeclarative
+qt6-qtmultimedia
+hicolor-icon-theme
+libadwaita
+libepoxy
+fontconfig
+gtk4
+xdg-desktop-portal
