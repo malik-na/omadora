@@ -35,7 +35,8 @@ if gum confirm "Are you sure you want to remove all preinstalled web apps, TUI w
     claude-code \
     github-cli
 
-  # Typora and LocalSend are delivered as Flatpaks on Fedora (install/helpers/fedora-manual.sh),
-  # not dnf packages, so omarchy-pkg-drop cannot remove them. Uninstall the flatpaks directly.
-  flatpak uninstall -y --user io.typora.Typora org.localsend.localsend_app 2>/dev/null || true
+  # Typora, LocalSend, Obsidian and Moonlight are delivered as Flatpaks on Fedora
+  # (install/helpers/fedora-manual.sh), not dnf packages, so omarchy-pkg-drop cannot remove them.
+  # Uninstall the flatpaks directly.
+  flatpak uninstall -y --user io.typora.Typora org.localsend.localsend_app md.obsidian.Obsidian com.moonlight_stream.Moonlight 2>/dev/null || true
 fi
