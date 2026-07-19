@@ -81,6 +81,13 @@ Asahi fork deliberately keeps its own way:
   `gpu-screen-recorder`) comes from the single `lionheartp/Hyprland` COPR; the old
   `solopasha/hyprland` and `erikreider/swayosd` COPRs are dropped (unmaintained / retired stack).
   See [DEPENDENCIES.md](DEPENDENCIES.md) for every source.
+- **The compositor package is chosen at install time.** `lionheartp/Hyprland` builds stable
+  `hyprland` once per release but rebuilds its libraries continuously, so an soname bump can leave
+  stable temporarily uninstallable. `install/helpers/fedora-hyprland.sh` prefers stable and falls
+  back to `hyprland-git`, and every `omarchy update` returns the machine to stable once the COPR
+  catches up. Nothing to do by hand either way.
+- **No update-channel picker.** Upstream lets the menu repoint the update source; this fork updates
+  from its own branch, so Update > Channel is gone. `omarchy-channel-set` still exists for manual use.
 - **`iwd`** stays as the Wi-Fi backend for NetworkManager (a deliberate fork choice).
 - **`firewalld`**, not UFW.
 - **aarch64 / Apple Silicon only** — Intel, NVIDIA, Framework, ASUS, Surface, Dell, and Apple T2
@@ -93,3 +100,7 @@ Asahi fork deliberately keeps its own way:
   log out and back in (or reboot) once after upgrading.
 - A binding stopped working? Check whether it is in the new `default/hypr/bindings/*.lua` and move any
   personal `.conf` binding to Lua.
+- Looking for the AUR entry under Install? There is no AUR on Fedora - Install > Package installs from
+  the Fedora repositories, and it is the only entry now.
+- Want to update the Flatpak apps and first-party tools without a full system update? Update > Apps
+  runs `omarchy-update-manual-pkgs` on its own.

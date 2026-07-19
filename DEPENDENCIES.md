@@ -143,7 +143,8 @@ covers what dnf cannot reach:
 
 | Source | Updated by |
 |---|---|
-| Fedora repos and every COPR | `dnf upgrade` |
+| Fedora repos, every COPR, and the opt-in NordVPN repo | `dnf upgrade` |
+| The Hyprland core (`hyprland` or `hyprland-git`) | `install/helpers/fedora-hyprland.sh`, re-run from `omarchy-update-manual-pkgs`. `dnf upgrade` cannot do this on its own: moving off the fallback means swapping to a differently-named package that conflicts with the installed one. |
 | Flatpak apps (Typora, LocalSend, Obsidian, Moonlight) | `flatpak update --user`, in `omarchy-update-manual-pkgs`. Upstream gets these from the AUR, so `yay -Sua` swept them up; on Fedora nothing was updating them at all until this step existed. |
 | First-party tools (aether, cliamp, omacut, omawrite, tensaku, voxtype, tobi-try, share-picker) | `install/helpers/fedora-first-party.sh`, re-run from `omarchy-update-manual-pkgs`. It is version-pinned and stamped, so it only redownloads or rebuilds a tool when its pin in that script moves. |
 | npx-wrapped npm tools (codex, gemini, copilot, pi, ghui, playwright) | each run resolves the package fresh (`npx --prefer-online`), so they self-update |
