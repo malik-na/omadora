@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# omarchy:summary=Lock the session at startup once the shell is ready
+# omarchy:group=system
+# omarchy:name=lock-boot
+# omarchy:examples=omarchy system lock-boot
+
+# Runs from the Hyprland autostart so the session comes up locked, the way the
+# pre-quattro hyprlock flow did - on Fedora Asahi the disk is not encrypted, so
+# this lock is where the boot password gets entered. The lock lives in the
+# Quickshell shell, which is still starting when this runs; poll its IPC
+# instead of racing it. "missing-pam" means the lock cannot authenticate
+# anyone, and locking then would trap the user out of their session.
+for _ in $(seq 1 150); do
+  case "$(omarchy-shell lock lock 2>/dev/null)" in
+    ok | missing-pam) exit 0 ;;
+  esac
+  sleep 0.2
+done
+
+echo "omarchy-system-lock-boot: shell lock did not come up within 30s" >&2
+exit 1
