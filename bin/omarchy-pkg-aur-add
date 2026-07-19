@@ -1,18 +1,10 @@
 #!/bin/bash
 
-# omarchy:summary=Add the named packages to the system from the AUR if they're missing. Returns false if it couldn't be done.
+# omarchy:summary=Add the named packages to the system if they're missing. Returns false if it couldn't be done.
 # omarchy:args=<packages...>
 
-if omarchy-pkg-missing "$@"; then
-  yay -S --noconfirm --needed "$@" || exit 1
-fi
-
-for pkg in "$@"; do
-  # Secondary check to handle states where pacman doesn't actually register an error
-  if ! pacman -Q "$pkg" &>/dev/null; then
-    echo -e "\033[31mError: Package '$pkg' did not install\033[0m" >&2
-    exit 1
-  fi
-done
-
-exit 0
+# There is no AUR on Fedora. Anything an upstream flow tries to install "from the AUR" either has a
+# Fedora/COPR package under the same name - in which case the regular dnf path below handles it - or
+# it does not exist here, and failing loudly beats pretending.
+echo "AUR is unavailable on Fedora. Installing from the enabled dnf repositories instead."
+exec omarchy-pkg-add "$@"

@@ -7,6 +7,15 @@
 
 set -euo pipefail
 
+# This script is upstream's pacman-repo upgrade path (pacman channels, omarchy-keyring, limine).
+# The Fedora fork delivers quattro through its git clone instead: `omarchy-update` pulls the quattro
+# branch and the migrations do the rest. Guard before anything runs, not just before pacman would.
+if [[ -f /etc/fedora-release ]]; then
+  echo "omarchy-upgrade-to-quattro is the Arch pacman upgrade path and does not apply to Fedora." >&2
+  echo "On Omarchy Mac Fedora, run 'omarchy-update' - the quattro branch and its migrations handle the upgrade." >&2
+  exit 1
+fi
+
 usage() {
   cat <<'USAGE'
 Usage: omarchy-upgrade-to-quattro [--yes] [--reboot] [--dev] [--channel stable|rc|edge] [--user USER]
