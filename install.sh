@@ -118,6 +118,7 @@ run_user "$OMARCHY_INSTALL/helpers/fedora-first-party.sh"
 run_user "$OMARCHY_INSTALL/helpers/fedora-grub-btrfs.sh"
 
 # --- System configuration ----------------------------------------------------
+run_root "$OMARCHY_INSTALL/config/system-files.sh"
 run_root "$OMARCHY_INSTALL/config/theme-system.sh"
 run_user "$OMARCHY_INSTALL/config/increase-lockout-limit.sh"
 run_root "$OMARCHY_INSTALL/config/lockscreen-pam.sh"
