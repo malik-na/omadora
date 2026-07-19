@@ -1,34 +1,39 @@
-# Fedora optional/build package list for Omarchy
+# Fedora optional/build package list for Omarchy quattro
 # Format: one package name per line
+#
+# These are the packages from omarchy-other.packages mapped to Fedora equivalents, plus the
+# build tooling the git-clone install needs. Everything x86- or Arch-only is omitted below.
 
-# These are packages from omarchy-other.packages mapped to Fedora equivalents or omitted if not needed
-
-autoconf-archive
 @development-tools
+autoconf-archive
 btrfs-progs
 egl-wayland
-git
 pipewire-gstreamer
 gtk4-layer-shell
-htop
-intltool
+pulseaudio-libs
 iwd
-pulseaudio-libs-devel
-sassc
-snapper
+tiny-dfr
 glycin-loaders
 wget2-wget
 zram-generator
 
-# Omitted/handled by Fedora:
+# Omitted/handled elsewhere:
+# - pipewire, pipewire-alsa, pipewire-jack, pipewire-pulse: preinstalled on Fedora Asahi
 # - webp-pixbuf-loader: retired in Fedora 44. gdk-pixbuf2 carries an Obsoletes tag for it, so the
-#   name still resolves, but nothing in Fedora 44 ships a webp gdk-pixbuf loader (the only loader
-#   left is libpixbufloader-xpm.so). Image decoding for GTK4 apps moved to glycin, so glycin-loaders
-#   above is the replacement that actually renders webp.
-# - base, base-devel: replaced by @development-tools
-# - dkms: not needed for most ARM64 hardware on Fedora Asahi
-# - pipewire, pipewire-alsa, pipewire-jack, pipewire-pulse: pre-installed
-# - linux, linux-firmware, kernel headers: handled by Fedora Asahi
-# - yay-debug: not needed (AUR helper)
-# - limine, limine-mkinitcpio-hook, limine-snapper-sync: Arch-specific bootloader/init
-# - broadcom-wl, dart, macbook12-spi-driver-dkms, nvidia-dkms, nvidia-open-dkms, nvidia-utils, lib32-nvidia-utils, libva-intel-driver, libva-nvidia-driver: x86_64/Arch-specific or not needed
+#   name still resolves, but nothing in Fedora 44 ships a webp gdk-pixbuf loader. Image decoding
+#   for GTK4 apps moved to glycin, so glycin-loaders above is what actually renders webp.
+# - snapper: in the base list
+# - iwd stays: the fork keeps iwd as the NetworkManager wifi backend (deliberate; quattro's move
+#   away from iwd is not adopted)
+# - tiny-dfr: Touch Bar daemon - relevant on M1/M2 MacBook Pro 13" under Fedora Asahi
+# - limine, limine-mkinitcpio-hook, limine-snapper-sync, linux, linux-headers, linux-firmware,
+#   base, base-devel, dkms, yay-debug: Arch boot/packaging stack - Fedora Asahi boots via its own
+#   kernel and dracut, and @development-tools replaces base-devel
+# - kernel-modules-hook, qemu-user-static-binfmt: Arch-only; Fedora uses akmods and systemd binfmt
+# - nvidia-* (all), lib32-nvidia-*, intel-ipu7-camera, intel-lpmd, intel-media-driver,
+#   libva-intel-driver, libva-nvidia-driver, libvpl, vpl-gpu-rt, vulkan-intel, vulkan-radeon,
+#   thermald, sof-firmware, broadcom-wl, asusctl, dell-xps-touchpad-haptics, linux-ptl*,
+#   linux-t2*, t2fanrd, apple-bcm-firmware, apple-t2-audio-config (T2 = Intel Macs),
+#   tuxedo-drivers-nocompatcheck-dkms, yt6801-dkms, qmk-hid, macbook12-spi-driver-dkms,
+#   linux-firmware-marvell: x86-only hardware - never present on Apple Silicon
+# - vulkan-asahi: Fedora ships Vulkan in mesa-vulkan-drivers (base list)

@@ -1,39 +1,62 @@
-# Fedora package list for Omarchy
+# Fedora package list for Omarchy quattro
 # Format: one package name per line
+#
+# Everything resolves from the official Fedora 44 aarch64 repos unless noted. The Hyprland stack
+# comes from the lionheartp/Hyprland COPR (the Asahi-safe builds, enabled by
+# install/helpers/fedora-copr.sh with priority=10 so dnf prefers it for those packages).
+# First-party quattro tools (aether, cliamp, omacut, omawrite, tensaku, tobi-try) and asdcontrol
+# ship as Arch packages upstream and have no Fedora build - they are installed outside dnf when
+# available (see install/helpers/fedora-manual.sh).
 
-# Desktop
+# Desktop - Hyprland stack (lionheartp COPR)
 hyprland
 hyprland-qt-support
-hypridle
-hyprlock
-hyprsunset
 hyprland-guiutils
-waybar
-mako
-swayosd
-swaybg
-slurp
-grim
-wf-recorder
-wl-clipboard
-satty
+hyprsunset
+hyprpicker
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
+uwsm
+
+# Desktop - the Quickshell shell (bar/launcher/notifications/OSD/lock in one program).
+# quickshell is an official Fedora 44 aarch64 package - no COPR needed.
+quickshell
+
+# Desktop - capture (gpu-screen-recorder replaces wf-recorder/wl-screenrec; lionheartp COPR)
+gpu-screen-recorder
+grim
+slurp
+
+# Desktop - misc
+wl-clipboard
+wtype
 xdg-user-dirs
 qt5-qtwayland
+qt6-qtwayland
 mesa-vulkan-drivers
 chromium
 yaru-icon-theme
 yaru-gtk3-theme
 yaru-gtk4-theme
 yaru-gtksourceview-theme
+# hyprland-preview-share-picker: no Fedora or COPR build for aarch64; screen sharing uses
+# xdg-desktop-portal-hyprland's built-in picker instead.
+# Retired by quattro and deliberately absent: waybar, walker, elephant, mako, swayosd, swaybg,
+# hypridle, hyprlock, wayfreeze, satty, pavucontrol, playerctl, wf-recorder, impala, bluetui.
+# The polkit agent is now the shell's own dialog, so lxpolkit is gone too.
+# kvantum is not installed on Fedora (fork decision); the QT_STYLE_OVERRIDE handling is adjusted
+# in the Hyprland env config instead.
 
-# Terminal
+# Terminals
 xdg-terminal-exec
 alacritty
+foot
+
+# Shell & CLI tools
 starship
 eza
 btop
+htop
 fzf
 ripgrep
 bat
@@ -41,80 +64,122 @@ fd-find
 zoxide
 fastfetch
 jq
-htop
 tmux
+gum
+less
+man-db
+tldr
+plocate
+socat
+inotify-tools
+inxi
+dua-cli
+whois
+unzip
+util-linux-script
+yt-dlp
 
 # Development
 neovim
 git
+gh
 cargo
+rust
 clang
 llvm
-java-latest-openjdk
 luarocks
-gh
+compat-lua
+compat-lua-libs
+tree-sitter-cli
+ruby
+libyaml
+python3-gobject
+python3-poetry-core
+libpq
+mariadb-connector-c
+java-latest-openjdk
+dotnet-runtime-9.0
 
 # Containers
 moby-engine
 docker-compose
 docker-buildx
-lazydocker
 
 # Media & Apps
 imv
 chafa
 mpv
-pinta
-libreoffice
-kdenlive
+mpv-mpris
 evince
+kdenlive
+obs-studio
+pinta
+xournalpp
+libreoffice
 nautilus
 nautilus-python
+sushi
 gnome-calculator
+gnome-disk-utility
+ffmpegthumbnailer
+ImageMagick
+tesseract
+tesseract-langpack-eng
+gvfs-mtp
+gvfs-nfs
+gvfs-smb
+udiskie
 
-# System Utilities
-playerctl
+# System
 brightnessctl
 pamixer
-pavucontrol
-gum
+alsa-utils
+wireplumber
 plymouth
 cups
-util-linux-script
-libqalculate
-qalculate
-plocate
-snapper
-btrfs-assistant
-python3-dnf-plugin-snapper
-inotify-tools
-ImageMagick
-socat
+cups-browsed
+cups-filters
+cups-pdf
+system-config-printer
+nss-mdns
+avahi
+bolt
+power-profiles-daemon
 firewalld
 python3-pip
 flatpak
-power-profiles-daemon
+NetworkManager
 NetworkManager-tui
 nm-connection-editor
-# No blueman: bluetui is the Bluetooth UI (installed by install/helpers/fedora-rust-tuis.sh) and
-# omarchy-launch-bluetooth always prefers it, so blueman was never reached - it only added a GUI app to
-# the launcher. It stays a fallback in omarchy-launch-bluetooth for anyone who installs it by hand.
+snapper
+btrfs-assistant
+python3-dnf-plugin-snapper
+dosfstools
+exfatprogs
+wireless-regdb
+libsecret
+gnome-keyring
 
 # Display Manager
 sddm
-libsecret
-gnome-keyring
-lxpolkit
 
 # Fonts
+# quattro's woff2-font-awesome maps to Fedora's fontawesome4-fonts + fontawesome-fonts-web.
+# The JetBrainsMono Nerd Font the shell and terminals use has no Fedora package - it is installed
+# from the nerd-fonts release by install/helpers/fedora-manual.sh. gnome-themes-extra was retired
+# in Fedora 44 (the Yaru packages above cover GTK theming).
 google-noto-fonts-common
+google-noto-sans-fonts
 google-noto-sans-cjk-fonts
 google-noto-emoji-fonts
 google-noto-color-emoji-fonts
-cascadia-mono-nf-fonts
 jetbrains-mono-fonts
+cascadia-mono-nf-fonts
+fontawesome4-fonts
+fontawesome-fonts-web
 
 # Input Methods
 fcitx5
 fcitx5-gtk
 fcitx5-qt5
+fcitx5-qt6

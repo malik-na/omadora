@@ -9,7 +9,10 @@ if ! is_fedora; then
   exit 0
 fi
 
-# Required COPR repos: the install cannot proceed without these
+# Required COPR repos: the install cannot proceed without these.
+# lionheartp/Hyprland is the single source for the whole Hyprland stack (hyprland, uwsm,
+# hyprland-guiutils, gpu-screen-recorder, portal) - it is the Asahi-safe build and is rebuilt
+# continuously. quickshell itself comes from the official Fedora repos, not a COPR.
 COPR_REPOS=(
   "lionheartp/Hyprland"
   "atim/starship"
@@ -20,9 +23,7 @@ COPR_REPOS=(
 # scottames/ghostty is only needed by `omarchy-install-terminal ghostty`; the default
 # terminal is alacritty, so a missing ghostty must never fail the install.
 OPTIONAL_COPR_REPOS=(
-  "solopasha/hyprland"
   "nclundell/fedora-extras"
-  "erikreider/swayosd"
   "scottames/ghostty"
 )
 
@@ -53,7 +54,6 @@ echo "COPR repositories enabled."
 # -------------------------------------------------------------
 # HYPRLAND REPOSITORY PROTECTION
 # Lionheartp must provide Hyprland core to keep Asahi compat.
-# Solopasha is used only as fallback for utilities (e.g. satty).
 # -------------------------------------------------------------
 source "$OMARCHY_INSTALL/helpers/fedora-copr-protect.sh"
 
@@ -67,16 +67,6 @@ if [[ "${OMARCHY_DRY_RUN:-0}" == "1" ]]; then
 else
   if ! sudo dnf distro-sync -y --refresh --allowerasing; then
     echo "✗ Fedora distro-sync failed after COPR setup"
-    exit 1
-  fi
-fi
-
-echo "Installing official GTK/Pango/Cairo build dependencies..."
-if [[ "${OMARCHY_DRY_RUN:-0}" == "1" ]]; then
-  echo "[DRY-RUN] Would run: sudo dnf install -y gtk4-devel gtk4-layer-shell-devel pango-devel cairo-devel --allowerasing"
-else
-  if ! sudo dnf install -y gtk4-devel gtk4-layer-shell-devel pango-devel cairo-devel --allowerasing; then
-    echo "✗ Failed to install official GTK/Pango/Cairo build dependencies"
     exit 1
   fi
 fi

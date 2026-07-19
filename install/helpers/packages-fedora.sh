@@ -7,7 +7,7 @@ LIONHEARTP_HYPRLAND_REPO="copr:copr.fedorainfracloud.org:lionheartp:Hyprland"
 fedora_is_lionheartp_hypr_package() {
   local package="$1"
   case "$package" in
-  hyprland | hyprland-uwsm | hyprland-qt-support | hyprlock | hypridle | hyprsunset | hyprpicker | hyprwire | xdg-desktop-portal-hyprland | aquamarine | hyprgraphics | hyprutils | hyprlang | hyprcursor | uwsm | libxkbcommon | libxkbcommon-x11 | kitty | kitty-kitten | kitty-shell-integration | kitty-terminfo)
+  hyprland | hyprland-uwsm | hyprland-qt-support | hyprland-guiutils | hyprsunset | hyprpicker | hyprwire | gpu-screen-recorder | xdg-desktop-portal-hyprland | aquamarine | hyprgraphics | hyprutils | hyprlang | hyprcursor | uwsm | libxkbcommon | libxkbcommon-x11 | kitty | kitty-kitten | kitty-shell-integration | kitty-terminfo)
     return 0
     ;;
   *)
