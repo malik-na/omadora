@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Update system packages with pacman
+# omarchy:summary=Update system packages with dnf and remove ones nothing needs any more
 # omarchy:requires-sudo=true
 
 set -e

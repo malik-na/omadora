@@ -39,7 +39,7 @@
   "learn.tmux-keybindings": {"icon":"","label":"Tmux keybindings","keywords":"keyboard shortcuts bindings terminal","action":"omarchy-menu-tmux-keybindings"},
   "learn.omarchy": {"icon":"","label":"Omarchy","keywords":"manual documentation","action":"omarchy-launch-webapp 'https://learn.omacom.io/2/the-omarchy-manual'"},
   "learn.hyprland": {"icon":"","label":"Hyprland","keywords":"wiki docs","action":"omarchy-launch-webapp 'https://wiki.hypr.land/'"},
-  "learn.arch": {"icon":"󰣇","label":"Arch","keywords":"linux wiki docs","action":"omarchy-launch-webapp 'https://wiki.archlinux.org/title/Main_page'"},
+  "learn.fedora": {"icon":"","label":"Fedora","keywords":"linux wiki docs","action":"omarchy-launch-webapp 'https://docs.fedoraproject.org/'"},
   "learn.neovim": {"icon":"","label":"Neovim","keywords":"lazyvim keymaps docs","action":"omarchy-launch-webapp 'https://www.lazyvim.org/keymaps'"},
   "learn.bash": {"icon":"󱆃","label":"Bash","keywords":"shell cheatsheet","action":"omarchy-launch-webapp 'https://devhints.io/bash'"},
 
@@ -152,8 +152,7 @@
   "setup.config.xcompose": {"icon":"󰞅","label":"XCompose","keywords":"compose key","action":"omarchy-launch-config-editor ~/.XCompose && omarchy-restart-xcompose"},
 
   // Install
-  "install.package": {"icon":"󰣇","label":"Package","keywords":"pacman aur","action":"xdg-terminal-exec --app-id=org.omarchy.terminal omarchy-pkg-install"},
-  "install.aur": {"icon":"󰣇","label":"AUR","keywords":"package","action":"xdg-terminal-exec --app-id=org.omarchy.terminal omarchy-pkg-aur-install"},
+  "install.package": {"icon":"󰉉","label":"Package","keywords":"dnf rpm software","action":"xdg-terminal-exec --app-id=org.omarchy.terminal omarchy-pkg-install"},
   "install.webapp": {"icon":"","label":"Web App","keywords":"pwa","action":"omarchy-launch-floating-terminal-with-presentation omarchy-webapp-install"},
   "install.tui": {"icon":"","label":"TUI","keywords":"terminal app","action":"omarchy-launch-floating-terminal-with-presentation omarchy-tui-install"},
   "install.service": {"icon":"","label":"Service","keywords":"dropbox tailscale vpn"},
@@ -176,7 +175,7 @@
   "install.service.spotify": {"icon":"󰓇","label":"Spotify","keywords":"music","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-service-spotify"},
   "install.service.signal": {"icon":"󰭹","label":"Signal","keywords":"messenger chat","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-service-signal"},
   "install.service.tailscale": {"icon":"","label":"Tailscale","keywords":"vpn","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-service-tailscale"},
-  "install.service.nordvpn": {"icon":"󱇱","label":"NordVPN [AUR]","keywords":"vpn","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-service-nordvpn"},
+  "install.service.nordvpn": {"icon":"󱇱","label":"NordVPN","keywords":"vpn","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-service-nordvpn"},
   "install.service.once": {"icon":"󰏖","label":"ONCE","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-service-once"},
   "install.service.bitwarden": {"icon":"󰟵","label":"Bitwarden","keywords":"password","action":"omarchy-install-and-launch Bitwarden 'bitwarden bitwarden-cli' bitwarden"},
   "install.service.chromium-account": {"icon":"","label":"Chromium Account","keywords":"google","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-chromium-google-account"},
@@ -287,6 +286,7 @@
   // Update
   "update.omarchy": {"icon":"","iconFont":"omarchy","label":"Omarchy","keywords":"system","action":"omarchy-launch-floating-terminal-with-presentation omarchy-update"},
   "update.config": {"icon":"","label":"Config","keywords":"refresh default"},
+  "update.apps": {"icon":"󰉉","label":"Apps","keywords":"flatpak flathub first-party tools","action":"omarchy-launch-floating-terminal-with-presentation omarchy-update-manual-pkgs"},
   "update.themes": {"icon":"󰸌","label":"Extra Themes","action":"omarchy-launch-floating-terminal-with-presentation omarchy-theme-update"},
   "update.process": {"icon":"","label":"Process","keywords":"restart services"},
   "update.hardware": {"icon":"󰇅","label":"Hardware","keywords":"restart audio wifi bluetooth trackpad"},

@@ -60,51 +60,6 @@ For watchers and diagnostics, `omarchy-migrate --pending` prints pending
 migration names and exits `0` when any are pending. When no migrations are
 pending, it prints nothing and exits non-zero.
 
-## Raw pacman guard
-
-The `omarchy` package installs an ALPM pre-transaction hook alongside its guard
-binary:
-
-```text
-/usr/share/libalpm/hooks/00-omarchy-update-guard.hook
-/usr/bin/omarchy-update-pacman-guard
-```
-
-It triggers on package upgrades and runs:
-
-```bash
-omarchy-update-pacman-guard
-```
-
-The guard detects direct pacman system-upgrade commands like `pacman -Syu` or
-`pacman --sync --refresh --sysupgrade`. If the upgrade was not launched by an
-Omarchy update command, the hook exits non-zero with `AbortOnFail`, which stops
-the transaction before packages are changed.
-
-`omarchy-update-system-pkgs`, `omarchy-refresh-pacman`, `omarchy-reinstall-pkgs`,
-and the v4 upgrader run pacman through:
-
-```bash
-env OMARCHY_UPDATE_PACMAN=1 pacman ...
-```
-
-so the guard allows Omarchy-owned update flows. A user can intentionally bypass
-the guard with:
-
-```bash
-sudo env OMARCHY_ALLOW_DIRECT_PACMAN=1 pacman -Syu
-```
-
-The guard does not start `omarchy update` itself because pacman is already in a
-transaction setup path; it only aborts with instructions.
-
-The `omarchy` package also installs ALPM hooks for `omarchy-settings` /
-`omarchy-settings-dev` installs and upgrades. The pre-transaction hook runs
-`omarchy-hyprland-reload-guard pause` to disable live Hyprland config reloads
-while `/usr/share/omarchy/default/hypr/**` is replaced. The post-transaction
-hook runs `omarchy-hyprland-reload-guard resume`, forces one `hyprctl reload`,
-and restores the session's previous `misc.disable_autoreload` and
-`debug.suppress_errors` values.
 
 ## Path 1: `omarchy update`
 
@@ -122,9 +77,7 @@ omarchy-update
        ├─ omarchy-update-system-pkgs
        ├─ omarchy-migrate
        ├─ omarchy-hook post-update
-       ├─ omarchy-update-aur-pkgs
        ├─ omarchy-update-mise
-       ├─ omarchy-update-orphan-pkgs
        ├─ omarchy-update-analyze-logs
        ├─ omarchy-update-available, then refresh/clear shell indicator
        ├─ omarchy-update-restart
@@ -199,13 +152,10 @@ scripts.
 | `omarchy-update-keyring` | Ensures Omarchy keyring and Arch keyring are current before the main transaction. | **Keep, but review.** It uses targeted `pacman -Sy` for keyring bootstrapping; acceptable for this special case but should remain tightly scoped. |
 | `omarchy-update-system-pkgs` | Runs `sudo env OMARCHY_UPDATE_PACMAN=1 pacman -Syu --noconfirm` with targeted transition `--overwrite` entries so the ALPM guard allows the transaction and early package-layout conflicts are handled. | **Keep for now.** Small leaf command, clear/testable. |
 | `omarchy-migrate` | Public migration command. Waits for pacman, then runs all pending migrations for the current user. Supports `--pending`. | **Keep.** This replaces the discarded `omarchy-update-user-finalize` name and no longer needs `--force`. |
-| `omarchy-update-pacman-guard` | ALPM pre-transaction guard that aborts direct `pacman -Syu` style upgrades unless Omarchy set `OMARCHY_UPDATE_PACMAN=1` or the user explicitly set `OMARCHY_ALLOW_DIRECT_PACMAN=1`. | **Keep internal/hidden.** This is what nudges users back to `omarchy update`. |
 | `omarchy-migrate-notify` | Internal notification helper for direct pacman updates. Uses `omarchy-migrate --pending` and shows notification only when this user has pending migrations. | **Keep internal/hidden.** Clear name now that the public command is `omarchy-migrate`. |
 | `omarchy-update-user-notify` | Hidden compatibility wrapper for `omarchy-migrate-notify`. | **Temporary.** Keep only for old callers. |
 | `omarchy-update-available` | Update checker for shell widget and post-update refresh. | **Keep.** Could eventually be renamed `omarchy-update-check`, but current name matches widget semantics. |
-| `omarchy-update-aur-pkgs` | Updates AUR packages with `yay -Sua` if foreign packages exist and AUR is reachable. | **Question.** Omarchy is package-backed now, but users may still install AUR packages. Keep for now. |
 | `omarchy-update-mise` | Runs `mise up` for mise-managed tools. | **Keep.** Mise-managed tools are intentionally part of the blessed update path. |
-| `omarchy-update-orphan-pkgs` | Lists orphans and prompts before removal; noninteractive mode never removes. | **Keep for now.** Safe because it is prompt-only. |
 | `omarchy-update-analyze-logs` | Scans `/tmp/omarchy-update.log` for known failure patterns, currently initramfs generation. | **Keep/expand.** Useful safety net; should grow only for high-signal checks. |
 | `omarchy-update-restart` | Prompts for reboot after kernel/Hyprland updates and restarts components with `restart-*-required` markers. | **Keep.** Important final step; may eventually include service-restart checks. |
 | `omarchy-update-firmware` | Manual firmware update command using fwupd. Not part of the normal update pipeline. | **Keep separate.** Firmware is not a routine system update step. |

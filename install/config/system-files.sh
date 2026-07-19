@@ -1,3 +1,4 @@
+#!/bin/bash
 # Install the parts of default/ that belong to the system rather than to a user.
 #
 # Upstream ships these in the omarchy-settings Arch package, which drops them straight into /usr.

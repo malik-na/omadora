@@ -37,9 +37,7 @@ for command in \
   omarchy-update-keyring \
   omarchy-update-system-pkgs \
   omarchy-migrate \
-  omarchy-update-aur-pkgs \
   omarchy-update-mise \
-  omarchy-update-orphan-pkgs \
   omarchy-hook \
   omarchy-update-analyze-logs \
   omarchy-shell \

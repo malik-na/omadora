@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Show a fuzzy-finder TUI for picking new Arch and OPR packages to install.
+# omarchy:summary=Prompt for package names and install them from the Fedora repositories.
 # omarchy:requires-sudo=true
 if (($# > 0)); then
   pkg_names="$*"

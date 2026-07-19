@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# omarchy:summary=Remove the Moonlight (GameStream) Flatpak app and its data.
+# omarchy:group=remove
+# omarchy:name=gaming moonlight
+
+set -e
+
+# --user, matching install/helpers/fedora-manual.sh: quattro preinstalls moonlight-qt as a package,
+# but Fedora has no aarch64 rpm, so this fork installs the Flatpak into the user installation. A
+# system-scope uninstall would not find it.
+if omarchy-cmd-present flatpak && flatpak info com.moonlight_stream.Moonlight &>/dev/null; then
+  flatpak uninstall -y --user --delete-data com.moonlight_stream.Moonlight
+fi
+
+echo ""
+echo "Moonlight removed."
