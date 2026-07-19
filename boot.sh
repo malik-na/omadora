@@ -67,8 +67,9 @@ if [[ ! $FEDORA_VERSION =~ ^[0-9]+$ ]] || ((FEDORA_VERSION < 44)); then
   exit 1
 fi
 
-if ! grep -q "asahi" /proc/version 2>/dev/null; then
+if [[ "${OMARCHY_ASSUME_ASAHI:-0}" != "1" ]] && ! grep -q "asahi" /proc/version 2>/dev/null; then
   echo -e "\n❌ Fedora Asahi kernel not detected."
+  echo -e "   (set OMARCHY_ASSUME_ASAHI=1 to run in a plain Fedora aarch64 VM for testing)"
   exit 1
 fi
 

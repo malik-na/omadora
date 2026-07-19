@@ -66,8 +66,12 @@ is_arch() {
   return 1
 }
 
-# Check if running on Fedora Asahi specifically
+# Check if running on Fedora Asahi specifically.
+# OMARCHY_ASSUME_ASAHI=1 forces this true for running the installer in a plain Fedora aarch64 VM
+# (which has no Asahi kernel). It validates only the distro/session logic - never the Apple hardware
+# paths (battery, keyboard backlight, wifi), which still require a real Mac.
 is_fedora_asahi() {
+  [[ "${OMARCHY_ASSUME_ASAHI:-0}" == "1" ]] && return 0
   is_fedora && grep -q "asahi" /proc/version 2>/dev/null
 }
 
