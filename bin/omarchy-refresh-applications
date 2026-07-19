@@ -14,4 +14,29 @@ if [[ -f "$OMARCHY_PATH/install/user/mise.sh" ]]; then
   bash "$OMARCHY_PATH/install/user/mise.sh"
 fi
 
+# Install the icons the .desktop files ask for. They ship under the application's display name
+# (WhatsApp.png) while the entry references a themed icon name (Icon=whatsapp), and nothing was
+# copying them at all - so every web app fell back to a generic placeholder in the launcher. Read
+# both fields from each entry rather than deriving one from the other: Battle.net wants battle-net
+# and Discord wants omarchy-discord, neither of which a name transform would produce.
+icon_dir="$HOME/.local/share/icons/hicolor/512x512/apps"
+mkdir -p "$icon_dir"
+
+for desktop in "$OMARCHY_PATH"/applications/*.desktop "$OMARCHY_PATH"/default/applications/*.desktop; do
+  [[ -f $desktop ]] || continue
+
+  name=$(sed -n 's/^Name=//p' "$desktop" | head -n1)
+  icon=$(sed -n 's/^Icon=//p' "$desktop" | head -n1)
+  [[ -n $name && -n $icon ]] || continue
+
+  for source_icon in "$OMARCHY_PATH/applications/icons/$name.png" "$OMARCHY_PATH/applications/icons/$icon.png"; do
+    if [[ -f $source_icon ]]; then
+      cp "$source_icon" "$icon_dir/$icon.png"
+      break
+    fi
+  done
+done
+
+gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" &>/dev/null || true
+
 update-desktop-database ~/.local/share/applications
