@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# omarchy:summary=Clear the shell's available-update indicator after an update
+
+# quattro's shell shows the "update available" glyph from the omarchy.system-update widget, which
+# exposes a `clear` IPC method. This replaces the retired Waybar RTMIN+7 signal the fork used before.
+# Best-effort: the shell may not be running (a TTY update), so never fail the update pipeline here.
+omarchy-shell -q omarchy.system-update clear >/dev/null 2>&1 || true
+exit 0
