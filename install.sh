@@ -52,6 +52,18 @@ if ! sudo true; then
   echo "     sudo rm -f /etc/sudoers.d/99-omarchy-installer && sudo visudo -c" >&2
   exit 1
 fi
+
+# Logo, gum styling, and the live log view (3.8.x look). Needs gum, so it
+# loads right after the gum bootstrap above.
+source "$OMARCHY_INSTALL/helpers/presentation.sh"
+
+# Name/email prompts (git config, XCompose). Interactive by design, so it must
+# run here with the terminal - under run_logged, gum renders its prompt into
+# the log file while reading /dev/tty, which freezes the install right after
+# the password with nothing on screen. Sourcing also keeps its exports, which
+# a run_logged subshell would lose.
+source "$OMARCHY_INSTALL/preflight/identification.sh"
+
 printf "%b" "$ANSI_HIDE_CURSOR"
 
 keep_sudo_alive() {
@@ -64,11 +76,15 @@ keep_sudo_alive &
 SUDO_KEEPALIVE_PID=$!
 
 cleanup_install() {
+  declare -F stop_log_output >/dev/null && stop_log_output
   printf "%b" "$ANSI_SHOW_CURSOR"
   sudo rm -f /etc/sudoers.d/99-omarchy-installer 2>/dev/null || true
   kill "${SUDO_KEEPALIVE_PID:-}" 2>/dev/null || true
 }
-trap cleanup_install EXIT INT TERM
+trap cleanup_install EXIT
+# Without the exit, an INT trap only kills the current child and the script
+# stumbles on to the next step; Ctrl+C must abort the whole install.
+trap 'exit 130' INT TERM
 
 # The log lives in /var/log (setup-system's location too); create it as root but
 # world-writable so the user-context and root-context steps can both append.
@@ -78,6 +94,13 @@ sudo chmod 666 "$OMARCHY_INSTALL_LOG_FILE"
 
 source "$OMARCHY_INSTALL/helpers/logging.sh"
 start_install_log
+
+# The 3.8.x install view: logo on top, then a live tail of the install log so
+# the long dnf steps are visibly making progress instead of looking hung.
+clear_logo
+gum style --foreground 3 --padding "1 0 0 $PADDING_LEFT" "Installing..."
+echo
+start_log_output
 
 # run_user: source a script in-process as the current user (self-escalating and
 # user-level scripts). run_root: run a root-context script (no internal sudo)
@@ -107,6 +130,8 @@ run_root() {
 }
 
 abort_install() {
+  stop_log_output
+  printf "%b" "$ANSI_SHOW_CURSOR"
   echo "❌ Install failed at: $1 (see $OMARCHY_INSTALL_LOG_FILE)" >&2
   exit 1
 }
@@ -114,7 +139,6 @@ abort_install() {
 # --- Preflight ---------------------------------------------------------------
 run_user "$OMARCHY_INSTALL/preflight/passwordless-installer.sh"
 run_user "$OMARCHY_INSTALL/preflight/locale.sh"
-run_user "$OMARCHY_INSTALL/preflight/identification.sh"
 run_user "$OMARCHY_INSTALL/preflight/dnf.sh" || abort_install "preflight/dnf.sh (COPR + repos)"
 
 # --- Packaging ---------------------------------------------------------------
@@ -151,7 +175,9 @@ run_user "$OMARCHY_INSTALL/config/xdg-user-dirs.sh"
 run_user "$OMARCHY_INSTALL/config/timezone-detection.sh"
 run_user "$OMARCHY_INSTALL/config/zsh.sh"
 run_user "$OMARCHY_INSTALL/config/lazyvim.sh"
-omarchy-finalize-user --first-install
+omarchy_log_line "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: omarchy-finalize-user"
+omarchy-finalize-user --first-install </dev/null >>"$OMARCHY_INSTALL_LOG_FILE" 2>&1 ||
+  omarchy_log_line "[$(date '+%Y-%m-%d %H:%M:%S')] Warning: omarchy-finalize-user reported an error (continuing)"
 
 # --- Login (SDDM + initramfs) ------------------------------------------------
 run_user "$OMARCHY_INSTALL/login/sddm.sh"
@@ -162,8 +188,8 @@ run_user "$OMARCHY_INSTALL/post-install/network-finalize.sh"
 run_root "$OMARCHY_INSTALL/post-install/udev.sh"
 run_root "$OMARCHY_INSTALL/post-install/localdb.sh"
 
+stop_log_output
 stop_install_log
 
 printf "%b" "$ANSI_SHOW_CURSOR"
-echo
-echo "✅ omarchy-mac-fedora is installed. Reboot to start Hyprland via SDDM."
+source "$OMARCHY_INSTALL/post-install/finished.sh"
