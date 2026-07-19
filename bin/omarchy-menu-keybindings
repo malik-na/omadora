@@ -268,11 +268,51 @@ modmask_to_text() {
 # - Remove standard Omarchy bin path prefix
 # - Map numeric modifier key mask to a textual rendition
 # - Output comma-separated values that the parser can understand
+# Emit one unit-separated record per bind: modmask, key, keycode, description, dispatcher, arg.
+#
+# Some Hyprland builds serialise `binds` to invalid JSON - unquoted string values, and values
+# written under the wrong keys - which jq refuses outright, leaving the menu showing only the
+# static entries. hyprland-git 0.55.0 at ef903b8 does it for every one of its binds. The plain-text
+# output of the same command carries the fields correctly, so parse that whenever the JSON does not
+# survive jq.
+binds_records() {
+  local json
+
+  json=$(hyprctl -j binds 2>/dev/null)
+  if [[ -n $json ]] && printf '%s' "$json" | jq -e . >/dev/null 2>&1; then
+    printf '%s' "$json" |
+      jq -r '.[] | [.modmask, (.key // ""), (.keycode // 0), (.description // ""), (.dispatcher // ""), (.arg // "") | tostring] | join("\u001f")'
+    return
+  fi
+
+  hyprctl binds 2>/dev/null | awk '
+    function flush() {
+      if (seen) printf "%s\037%s\037%s\037%s\037%s\037%s\n", modmask, key, keycode, description, dispatcher, arg
+      seen = 0; modmask = ""; key = ""; keycode = "0"; description = ""; dispatcher = ""; arg = ""
+    }
+    /^[^\t]/ { flush(); next }
+    {
+      line = $0
+      sub(/^\t/, "", line)
+      idx = index(line, ": ")
+      if (idx == 0) { field = substr(line, 1, length(line) - 1); value = "" }
+      else { field = substr(line, 1, idx - 1); value = substr(line, idx + 2) }
+
+      if (field == "modmask") { modmask = value; seen = 1 }
+      else if (field == "key") key = value
+      else if (field == "keycode") keycode = value
+      else if (field == "description") description = value
+      else if (field == "dispatcher") dispatcher = value
+      else if (field == "arg") arg = value
+    }
+    END { flush() }
+  '
+}
+
 dynamic_bindings() {
   local modmask key keycode description dispatcher arg modifiers cache_key
 
-  hyprctl -j binds |
-    jq -r '.[] | [.modmask, (.key // ""), (.keycode // 0), (.description // ""), (.dispatcher // ""), (.arg // "") | tostring] | join("\u001f")' |
+  binds_records |
     while IFS=$'\x1f' read -r modmask key keycode description dispatcher arg; do
       if [[ -z $key && $keycode != "0" ]]; then
         key="code:$keycode"
