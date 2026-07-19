@@ -11,9 +11,23 @@ description: >
   source development through `omarchy dev link` workflows.
 ---
 
-# Omarchy Skill
+# Omarchy Mac Fedora Skill
 
-Manage [Omarchy](https://omarchy.org/) Linux systems - a beautiful, modern, opinionated Arch Linux distribution with Hyprland.
+Manage Omarchy Mac Fedora systems - a Fedora Asahi Remix (aarch64/Apple Silicon) desktop built on Hyprland, ported from [Omarchy](https://omarchy.org/).
+
+## Target Platform
+
+This skill is for the Omarchy Mac Fedora fork and assumes:
+
+- Fedora Asahi Remix Minimal, **release 44 or newer**
+- Apple Silicon (M1/M2/M3/M4) running `aarch64`
+- Omarchy Mac Fedora installed by git clone into `~/.local/share/omarchy`
+
+Unsupported targets:
+- Arch / ALARM-based Omarchy installs
+- Non-Asahi Fedora installs
+- **Fedora Asahi Remix 43 and older** - the installer and `omarchy-update` refuse to run and print the upgrade instructions; upgrade Fedora first
+- `x86_64` hosts
 
 This skill is for end-user customization on installed systems.
 It is not for contributing to Omarchy source code.
@@ -40,7 +54,7 @@ It is not for contributing to Omarchy source code.
 
 When invoking a privileged command directly, use `pkexec` instead of `sudo` so Omarchy can show a graphical authorization prompt with command context. Do not wrap commands that already manage privilege elevation themselves.
 
-**For end-user customization tasks, NEVER modify anything in `/usr/share/omarchy/`** - but READING is safe and encouraged.
+**For end-user customization tasks, NEVER modify anything in `~/.local/share/omarchy/`** - but READING is safe and encouraged.
 
 This directory contains Omarchy's source files managed by git. Any changes will be:
 - Lost on next `omarchy update`
@@ -48,7 +62,7 @@ This directory contains Omarchy's source files managed by git. Any changes will 
 - Break the system's update mechanism
 
 ```
-/usr/share/omarchy/     # READ-ONLY - NEVER EDIT (reading is OK)
+~/.local/share/omarchy/     # READ-ONLY - NEVER EDIT (reading is OK)
 ├── bin/                    # Source scripts (symlinked to PATH)
 ├── config/                 # Default config templates
 ├── themes/                 # Stock themes
@@ -58,11 +72,11 @@ This directory contains Omarchy's source files managed by git. Any changes will 
 └── install/                # Installation scripts
 ```
 
-**Reading `/usr/share/omarchy/` is SAFE and useful** - do it freely to:
+**Reading `~/.local/share/omarchy/` is SAFE and useful** - do it freely to:
 - Understand how omarchy commands work: `omarchy theme set --help` or `cat $(which omarchy-theme-set)`
 - See default configs before customizing: `cat "$OMARCHY_PATH/config/omarchy/shell.json"`
 - Check stock theme files to copy for customization
-- Reference default hyprland settings: `cat /usr/share/omarchy/default/hypr/*`
+- Reference default hyprland settings: `cat ~/.local/share/omarchy/default/hypr/*`
 
 **Always use these safe locations instead:**
 - `~/.config/` - User configuration (safe to edit)
@@ -85,11 +99,11 @@ command changes system state.
 
 ## System Architecture
 
-Omarchy is built on:
+Omarchy Mac Fedora is built on:
 
 | Component | Purpose | Config Location |
 |-----------|---------|-----------------|
-| **Arch Linux** | Base OS | `/etc/`, `~/.config/` |
+| **Fedora Asahi Remix** | Base OS (aarch64) | `/etc/`, `~/.config/` |
 | **Hyprland** | Wayland compositor/WM | `~/.config/hypr/` |
 | **Omarchy shell** | Status bar + notifications (Quickshell) | `~/.config/omarchy/shell.json` |
 | **Launcher** | Quickshell launcher | `~/.config/omarchy/shell.json` |
@@ -222,7 +236,7 @@ cp ~/.config/hypr/bindings.conf ~/.config/hypr/bindings.conf.bak.$(date +%s)
 ### Pattern 2: Make a new theme
 
 1. Create a directory under ~/.config/omarchy/themes.
-2. See how an existing theme is done via /usr/share/omarchy/themes/catppuccin.
+2. See how an existing theme is done via ~/.local/share/omarchy/themes/catppuccin.
 3. Download a matching background (or several) from the internet and put them in ~/.config/omarchy/themes/[name-of-new-theme]
 4. When done with the theme, run `omarchy theme set "Name of new theme"`
 
@@ -368,10 +382,10 @@ omarchy reinstall
 When user requests system changes:
 
 1. **Is it a stock omarchy command?** Use it directly
-2. **Is it a config edit?** Edit in `~/.config/`, never `/usr/share/omarchy/`
+2. **Is it a config edit?** Edit in `~/.config/`, never `~/.local/share/omarchy/`
 3. **Is it a theme customization?** Create a NEW custom theme directory
 4. **Is it automation?** Use hooks in `~/.config/omarchy/hooks/`
-5. **Is it a package install?** Use `omarchy pkg add <pkgs...>` (or `omarchy pkg aur add <pkgs...>` for AUR-only packages)
+5. **Is it a package install?** Use `omarchy pkg add <pkgs...>` (dnf, plus the configured COPRs) - there is no AUR on Fedora
 6. **Unsure if command exists?** Run `omarchy commands` (or `omarchy <group> --help` for one group)
 
 ### Reminder Requests
@@ -388,7 +402,7 @@ omarchy reminder clear
 ## Out of Scope
 
 This skill intentionally does not cover Omarchy source development. Do not use this skill for:
-- Editing files in `/usr/share/omarchy/` (`bin/`, `config/`, `default/`, `shell/`, `themes/`, `migrations/`, etc.)
+- Editing files in `~/.local/share/omarchy/` (`bin/`, `config/`, `default/`, `shell/`, `themes/`, `migrations/`, etc.)
 - Creating or editing migrations
 - Running `omarchy dev ...` commands
 
