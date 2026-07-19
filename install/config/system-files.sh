@@ -57,4 +57,24 @@ install -Dm644 "$omarchy_default/xdg-terminal-exec/hyprland-xdg-terminals.list" 
 install -d /usr/share/plymouth/themes/omarchy
 cp -RT "$omarchy_default/plymouth" /usr/share/plymouth/themes/omarchy
 
+# Nautilus extensions - localsend.py is what puts "Send via LocalSend" in the file manager's menu.
+# Upstream seeds these through /etc/skel, which only reaches users created after installation, so on
+# a git-clone install where the user already exists nothing ever placed them. Seed both: /etc/skel,
+# because omarchy-reinstall-configs resyncs user defaults by replaying that tree, and the installing
+# user's home, so the extensions are present without creating a new account.
+skel_extensions="/etc/skel/.local/share/nautilus-python/extensions"
+install -d "$skel_extensions"
+cp -f "$omarchy_default"/nautilus-python/extensions/*.py "$skel_extensions/"
+
+if [[ -n ${OMARCHY_INSTALL_USER:-} ]]; then
+  user_home=$(getent passwd "$OMARCHY_INSTALL_USER" | cut -d: -f6)
+
+  if [[ -n $user_home && -d $user_home ]]; then
+    user_extensions="$user_home/.local/share/nautilus-python/extensions"
+    install -d -o "$OMARCHY_INSTALL_USER" -g "$(id -gn "$OMARCHY_INSTALL_USER")" "$user_extensions"
+    cp -f "$omarchy_default"/nautilus-python/extensions/*.py "$user_extensions/"
+    chown "$OMARCHY_INSTALL_USER:$(id -gn "$OMARCHY_INSTALL_USER")" "$user_extensions"/*.py
+  fi
+fi
+
 systemctl daemon-reload
