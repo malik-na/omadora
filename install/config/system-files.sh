@@ -30,7 +30,8 @@ install -Dm644 "$omarchy_default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
 # fork ever supported several users.
 install -d /usr/lib/systemd/user
 for unit in "$omarchy_default"/systemd/user/*.service "$omarchy_default"/systemd/user/*.path; do
-  sed "s|/usr/bin/omarchy-|$OMARCHY_PATH/bin/omarchy-|g" "$unit" \
+  sed -e "s|/usr/bin/omarchy-|$OMARCHY_PATH/bin/omarchy-|g" \
+    -e "s|/usr/share/omarchy|$OMARCHY_PATH|g" "$unit" \
     >"/usr/lib/systemd/user/$(basename "$unit")"
 done
 install -Dm755 "$omarchy_default/systemd/system-sleep/unmount-fuse" \
@@ -38,8 +39,25 @@ install -Dm755 "$omarchy_default/systemd/system-sleep/unmount-fuse" \
 install -Dm644 "$omarchy_default/systemd/user@.service.d/faster-shutdown.conf" \
   /usr/lib/systemd/system/user@.service.d/faster-shutdown.conf
 
-# Session environment drop-ins.
-install -Dm644 "$omarchy_default/uwsm/env.d/10-omarchy" /usr/share/uwsm/env.d/10-omarchy
+# OMARCHY_PATH for every layer. /etc/omarchy.conf is the source of truth
+# env-bootstrap reads (omarchy-dev-link/-unlink rewrite it); without it every
+# consumer falls back to the Arch package path /usr/share/omarchy, which does
+# not exist on a git-clone install - the Hyprland session then dies inside
+# hyprland.lua before the compositor starts, and SDDM bounces back to the
+# greeter. Written the same way omarchy-dev-unlink writes it.
+printf 'export OMARCHY_PATH="%s"\n' "$OMARCHY_PATH" >/etc/omarchy.conf
+
+# Session environment drop-ins. The uwsm hook and the login-shell hook both
+# source env-bootstrap from the Arch package path; point them into the clone
+# as they are installed, the same rewrite the systemd units get above.
+install -d /usr/share/uwsm/env.d
+sed "s|/usr/share/omarchy/|$OMARCHY_PATH/|g" "$omarchy_default/uwsm/env.d/10-omarchy" \
+  >/usr/share/uwsm/env.d/10-omarchy
+chmod 644 /usr/share/uwsm/env.d/10-omarchy
+install -d /etc/profile.d
+sed "s|/usr/share/omarchy/|$OMARCHY_PATH/|g" "$OMARCHY_PATH/etc/profile.d/omarchy.sh" \
+  >/etc/profile.d/omarchy.sh
+chmod 644 /etc/profile.d/omarchy.sh
 install -d /usr/lib/environment.d
 cp -f "$omarchy_default"/environment.d/*.conf /usr/lib/environment.d/
 

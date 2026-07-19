@@ -8,8 +8,15 @@ OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
 mkdir -p ~/.config
 cp -R "$OMARCHY_PATH"/config/* ~/.config/
 
+# The shipped chromium flags load extensions from the Arch package path;
+# point them into the clone.
+sed -i "s|/usr/share/omarchy/|$OMARCHY_PATH/|g" ~/.config/chromium-flags.conf
+
 # Shipped bashrc (it sources the rest of the shell setup from $OMARCHY_PATH).
+# Its env-bootstrap line also carries the Arch package path, and with it left
+# in place non-login shells never get OMARCHY_PATH.
 cp "$OMARCHY_PATH/default/bashrc" ~/.bashrc
+sed -i "s|/usr/share/omarchy/|$OMARCHY_PATH/|g" ~/.bashrc
 
 # Make Omarchy commands available in login sessions (e.g. the SDDM Wayland
 # session), not just interactive bash.
