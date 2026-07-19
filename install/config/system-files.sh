@@ -78,4 +78,30 @@ if [[ -n ${OMARCHY_INSTALL_USER:-} ]]; then
   fi
 fi
 
+# Branding text. omarchy-screensaver reads ~/.config/omarchy/branding/screensaver.txt and the about
+# screen reads about.txt; upstream seeds both through /etc/skel from the repo's logo.txt and
+# icon.txt (the mapping omarchy-branding-screensaver/-about use when resetting). Nothing placed them
+# here, so the screensaver failed with "File not found". Seeded the same two ways as the Nautilus
+# extensions above, and never overwriting branding the user has already customised.
+seed_branding() {
+  local dir="$1" owner="${2:-}"
+
+  install -d ${owner:+-o "$owner" -g "$(id -gn "$owner")"} "$dir"
+
+  local pair source target
+  for pair in "logo.txt:screensaver.txt" "icon.txt:about.txt"; do
+    source="$OMARCHY_PATH/${pair%%:*}"
+    target="$dir/${pair##*:}"
+
+    [[ -f $source && ! -f $target ]] || continue
+    install -m644 ${owner:+-o "$owner" -g "$(id -gn "$owner")"} "$source" "$target"
+  done
+}
+
+seed_branding /etc/skel/.config/omarchy/branding
+
+if [[ -n ${OMARCHY_INSTALL_USER:-} && -n ${user_home:-} && -d ${user_home:-} ]]; then
+  seed_branding "$user_home/.config/omarchy/branding" "$OMARCHY_INSTALL_USER"
+fi
+
 systemctl daemon-reload
