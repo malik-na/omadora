@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# omarchy:summary=Switch Omarchy's git checkout to a branch
+# omarchy:args=<branch>
+
+if (($# == 0)); then
+  echo "Usage: omarchy-branch-set <branch>"
+  exit 1
+fi
+
+branch="$1"
+
+if git -C "$OMARCHY_PATH" show-ref --verify --quiet "refs/heads/$branch"; then
+  git -C "$OMARCHY_PATH" switch "$branch"
+elif git -C "$OMARCHY_PATH" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+  git -C "$OMARCHY_PATH" switch -c "$branch" --track "origin/$branch"
+else
+  echo "Unknown branch: $branch"
+  exit 1
+fi
