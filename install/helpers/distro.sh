@@ -80,4 +80,8 @@ is_arch_asahi() {
   return 1
 }
 
-echo "Distro: $OMARCHY_DISTRO"
+# To stderr, not stdout. Every command that sources this helper would otherwise start its output
+# with this line, and callers that read a command's stdout would parse it as data - it made
+# `omarchy-migrate --pending` look like it had one pending migration on a machine that had none.
+# The install log captures both streams, so this stays just as visible there.
+echo "Distro: $OMARCHY_DISTRO" >&2

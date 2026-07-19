@@ -1,8 +1,29 @@
 #!/bin/bash
 
 # omarchy:summary=Run all pending migrations to bring the system in line with the installed version.
+# omarchy:args=[--pending]
 OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
 OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
+
+mode="run"
+
+while (($#)); do
+  case "$1" in
+    --pending | --check)
+      mode="pending"
+      shift
+      ;;
+    -h | --help)
+      echo "Usage: omarchy-migrate [--pending]"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Usage: omarchy-migrate [--pending]" >&2
+      exit 1
+      ;;
+  esac
+done
 
 if [[ -f "$OMARCHY_INSTALL/helpers/distro.sh" ]]; then
   source "$OMARCHY_INSTALL/helpers/distro.sh"
@@ -27,6 +48,27 @@ mkdir -p "$STATE_DIR"
 
 # Skipped migrations are tracked separately
 mkdir -p "$STATE_DIR/skipped"
+
+# --pending is a read-only query, used by omarchy-migrate-notify to decide whether to prompt. It
+# prints the pending names and exits 0, or prints nothing and exits non-zero when there are none.
+#
+# A migration recorded under skipped/ is not pending: those are the Arch-only ones this fork will
+# never run, and counting them would leave every Fedora machine permanently nagging about
+# migrations that can never be applied.
+if [[ $mode == "pending" ]]; then
+  pending=()
+  for file in "$OMARCHY_PATH"/migrations/*.sh; do
+    [[ -f $file ]] || continue
+    filename=$(basename "$file")
+    if [[ ! -f "$STATE_DIR/$filename" && ! -f "$STATE_DIR/skipped/$filename" ]]; then
+      pending+=("$filename")
+    fi
+  done
+
+  ((${#pending[@]})) || exit 1
+  printf '%s\n' "${pending[@]}"
+  exit 0
+fi
 
 # Run any pending migrations
 for file in $OMARCHY_PATH/migrations/*.sh; do
