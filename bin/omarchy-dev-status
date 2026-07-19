@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-default_target="/usr/share/omarchy"
+default_target="$HOME/.local/share/omarchy"
 configured="$default_target"
 conf_present=0
 linked=0

@@ -8,5 +8,7 @@ return {
   home = home,
   config_home = os.getenv("XDG_CONFIG_HOME") or (home .. "/.config"),
   state_home = os.getenv("XDG_STATE_HOME") or (home .. "/.local/state"),
-  omarchy_path = os.getenv("OMARCHY_PATH") or "/usr/share/omarchy",
+  -- The fork is a per-user git clone, not a system package, so fall back to that location rather
+  -- than the Arch package path when OMARCHY_PATH is not in the session environment.
+  omarchy_path = os.getenv("OMARCHY_PATH") or (home .. "/.local/share/omarchy"),
 }
