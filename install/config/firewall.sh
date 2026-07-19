@@ -1,54 +1,26 @@
-# Allow nothing in, everything out.
-ufw default deny incoming
-ufw default allow outgoing
-
-# Allow ports for LocalSend.
-ufw allow 53317/udp
-ufw allow 53317/tcp
-
-# Allow Docker containers to use DNS on host.
-ufw allow in proto udp from 172.16.0.0/12 to 172.17.0.1 port 53 comment 'allow-docker-dns'
-ufw allow in proto udp from 192.168.0.0/16 to 172.17.0.1 port 53 comment 'allow-docker-dns'
-
-# Turn on Docker protections. ufw-docker refuses to install its after.rules
-# block unless UFW is already active, but during ISO finalization the target
-# chroot shares the live installer's kernel firewall. Keep the live firewall
-# untouched: for this config-file-only install action, satisfy ufw-docker's
-# status preflight without activating UFW.
-install_ufw_docker_rules() {
-  local shim_dir status ufw_docker_bin
-
-  ufw_docker_bin=$(command -v ufw-docker)
-  shim_dir=$(mktemp -d)
-  cat >"$shim_dir/ufw" <<'EOF'
-#!/bin/bash
-if [[ ${1:-} == "status" ]]; then
-  echo "Status: active"
+# Configure the firewall the Fedora way (firewalld), not UFW. Runs as root from
+# omarchy-setup-system / install.sh, so no internal sudo.
+if ! command -v firewall-cmd >/dev/null 2>&1; then
+  echo "[WARN] firewalld is not available; skipping firewall setup"
   exit 0
 fi
 
-exec /usr/bin/ufw "$@"
-EOF
+# Enable firewalld for the installed system. Don't --now it: inside an ISO chroot
+# there is no running systemd to start it, and on a live git-clone install it is
+# already running, so the reload at the end is what applies the rules.
+if ! systemctl is-enabled firewalld >/dev/null 2>&1; then
+  systemctl enable firewalld
+fi
 
-  # The packaged ufw-docker pins PATH internally, so run a temporary copy whose
-  # PATH can see the status shim above.
-  sed "0,/^PATH=/s#^PATH=.*#PATH=\"$shim_dir:/bin:/usr/bin:/sbin:/usr/sbin:/snap/bin/\"#" \
-    "$ufw_docker_bin" >"$shim_dir/ufw-docker"
-  chmod 755 "$shim_dir/ufw" "$shim_dir/ufw-docker"
+# LocalSend discovery and transfer ports.
+firewall-cmd --permanent --add-port=53317/udp
+firewall-cmd --permanent --add-port=53317/tcp
 
-  if "$shim_dir/ufw-docker" install; then
-    status=0
-  else
-    status=$?
-  fi
+# Let Docker containers reach the host's DNS resolver on the docker0 bridge.
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="172.16.0.0/12" destination address="172.17.0.1" port protocol="udp" port="53" accept'
 
-  rm -rf "$shim_dir"
-  return "$status"
-}
-
-install_ufw_docker_rules
-
-# Installs are followed by reboot, so configure UFW to start on the installed
-# system instead of mutating the live install session's firewall.
-sed -i 's/^ENABLED=.*/ENABLED=yes/' /etc/ufw/ufw.conf
-systemctl enable ufw
+# Apply the permanent rules now if firewalld is running (live install). In a
+# chroot it isn't, and the rules take effect when the installed system boots.
+if systemctl is-active firewalld >/dev/null 2>&1; then
+  firewall-cmd --reload
+fi
