@@ -143,6 +143,13 @@ brightnessctl
 pamixer
 alsa-utils
 wireplumber
+# The shell's own panels drive audio and bluetooth through CLIs rather than a TUI: the audio panel
+# calls wpctl (wireplumber) and pactl, and the bluetooth panel calls bluetoothctl. pactl needs
+# pulseaudio-utils plus the pipewire-pulse server to talk to, and both were only ever present as
+# weak dependencies - without pactl, switching output silently fails to move playing streams.
+pulseaudio-utils
+pipewire-pulseaudio
+bluez
 plymouth
 cups
 cups-browsed
