@@ -10,7 +10,9 @@ if [[ -z $1 ]]; then
 fi
 
 remove_php() {
-  sudo pacman -Rns --noconfirm php composer php-sqlite xdebug 2>/dev/null || true
+  # Mirrors the package set omarchy-install-dev-env installs on Fedora. omarchy-pkg-drop skips
+  # anything that is not installed, so this stays quiet on a partial install.
+  omarchy-pkg-drop php php-cli composer php-pdo php-pecl-xdebug3
 }
 
 case "$1" in
@@ -50,7 +52,7 @@ laravel)
   ;;
 symfony)
   echo -e "Removing Symfony CLI...\n"
-  sudo pacman -Rns --noconfirm symfony-cli 2>/dev/null || true
+  omarchy-pkg-drop symfony-cli
   ;;
 python)
   echo -e "Removing Python...\n"

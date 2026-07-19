@@ -12,7 +12,7 @@ if [[ -z $1 ]]; then
 fi
 
 install_php() {
-  sudo dnf install -y php php-cli composer php-sqlite3 php-pecl-xdebug
+  sudo dnf install -y php php-cli composer php-pdo php-pecl-xdebug3
 
   # Install Path for Composer
   if [[ :$PATH: != *:$HOME/.config/composer/vendor/bin:* ]]; then
