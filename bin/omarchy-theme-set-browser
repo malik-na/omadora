@@ -3,7 +3,8 @@
 # omarchy:summary=Apply the current theme color to Chromium, Chrome, Edge, and Brave
 # omarchy:hidden=true
 
-CHROMIUM_THEME=$HOME/.local/state/omarchy/current/theme/chromium.theme
+THEME_DIR=$HOME/.local/state/omarchy/current/theme
+CHROMIUM_THEME=$THEME_DIR/chromium.theme
 
 # Use a default, neutral grey if theme doesn't have a color
 THEME_RGB_COLOR="28,32,39"
@@ -13,6 +14,10 @@ if [[ -f $CHROMIUM_THEME ]]; then
   THEME_RGB_COLOR=$(<$CHROMIUM_THEME)
   THEME_HEX_COLOR=$(printf '#%02x%02x%02x' ${THEME_RGB_COLOR//,/ })
 fi
+
+# quattro dropped the light.mode marker file; the mode now lives in colors.toml. omarchy-theme-color
+# resolves it (colors.toml `mode`, the legacy marker, or background luminance) - use that everywhere.
+MODE=$(omarchy-theme-color --file "$THEME_DIR/colors.toml" mode 2>/dev/null)
 
 # Try to handle flatpak policy paths dynamically if app exists
 FLATPAK_APPS=(
@@ -53,7 +58,7 @@ done
 # Refresh running browsers and set mode
 if omarchy-cmd-present chromium; then
   chromium --no-startup-window --set-theme-color="$THEME_RGB_COLOR"
-  if [[ -f ~/.config/omarchy/current/theme/light.mode ]]; then
+  if [[ $MODE == "light" ]]; then
     chromium --no-startup-window --set-color-scheme="light"
   else
     chromium --no-startup-window --set-color-scheme="dark"
@@ -63,7 +68,7 @@ fi
 # Fedora: mainline chromium package provides chromium-browser, not chromium
 if omarchy-cmd-present chromium-browser; then
   chromium-browser --no-startup-window --set-theme-color="$THEME_RGB_COLOR"
-  if [[ -f ~/.config/omarchy/current/theme/light.mode ]]; then
+  if [[ $MODE == "light" ]]; then
     chromium-browser --no-startup-window --set-color-scheme="light"
   else
     chromium-browser --no-startup-window --set-color-scheme="dark"

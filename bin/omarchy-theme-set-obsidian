@@ -26,7 +26,10 @@
 # - Fonts: monospace from Alacritty [font] or fontconfig monospace; UI font from fontconfig sans-serif.
 
 VAULTS_FILE="$HOME/.local/state/omarchy/obsidian-vaults"
-CURRENT_THEME_DIR="$HOME/.config/omarchy/current/theme"
+# quattro moved the current-theme dir to ~/.local/state/omarchy/current/theme (the ~/.config path is
+# the pre-quattro location, migrated by omarchy-upgrade-to-quattro). Reading the old path here made
+# the generated obsidian.css invisible, so every vault fell through to the palette-derived fallback.
+CURRENT_THEME_DIR="$HOME/.local/state/omarchy/current/theme"
 
 ensure_vaults_file() {
   mkdir -p "$(dirname "$VAULTS_FILE")"
