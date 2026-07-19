@@ -4,9 +4,9 @@
 # Everything resolves from the official Fedora 44 aarch64 repos unless noted. The Hyprland stack
 # comes from the lionheartp/Hyprland COPR (the Asahi-safe builds, enabled by
 # install/helpers/fedora-copr.sh with priority=10 so dnf prefers it for those packages).
-# First-party quattro tools (aether, cliamp, omacut, omawrite, tensaku, tobi-try) and asdcontrol
-# ship as Arch packages upstream and have no Fedora build - they are installed outside dnf when
-# available (see install/helpers/fedora-manual.sh).
+# First-party quattro tools (aether, cliamp, omacut, omawrite, tensaku, tobi-try) ship as Arch
+# packages upstream and have no Fedora build - they are installed outside dnf when available
+# (see install/helpers/fedora-manual.sh).
 
 # Desktop - Hyprland stack (lionheartp COPR)
 # The compositor itself is not listed here: install/helpers/fedora-hyprland.sh picks between the
