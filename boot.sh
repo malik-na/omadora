@@ -20,8 +20,10 @@ ansi_art='                 ▄▄▄
 clear
 echo -e "\n$ansi_art\n"
 
+# A real command, not a bare `sudo -v`: on a real M1/M2 console `sudo -v` as
+# the session's first sudo call hangs at (or without) the password prompt.
 echo "🔐 omarchy-mac-fedora installation requires administrator access..."
-if ! sudo -v; then
+if ! sudo true; then
   echo "❌ Could not obtain sudo access. Run as a regular user in the 'wheel' group."
   exit 1
 fi

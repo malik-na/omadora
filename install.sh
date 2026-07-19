@@ -36,13 +36,16 @@ bash "$OMARCHY_INSTALL/preflight/guard.sh" || exit 1
 
 # Administrator access. One prompt up front; passwordless-installer.sh then drops
 # a temporary NOPASSWD sudoers rule so the rest of the install doesn't re-ask.
-# This is the first sudo call, so it is where the password is entered. Keep it
-# exactly as the pre-quattro line that has always worked: a plain interactive
-# `sudo -v` with the cursor visible, and only hide the cursor once sudo is
-# confirmed. (Hiding it first made the prompt look frozen; redirecting from
-# /dev/tty could fail outright when there is no controlling terminal.)
+# The password has to be entered at a real `sudo <command>`, never at a bare
+# `sudo -v`: on a real M1/M2 console `sudo -v` as the session's first sudo call
+# hangs at (or without) the password prompt, while the 3.8.x line - which always
+# took the password at a `sudo dnf` command - never did. So gum is installed
+# first with the terminal attached, exactly where 3.8.x ran it: on a fresh
+# system its `sudo dnf install gum` is where the password goes in. `sudo true`
+# then covers re-runs where gum is already present and no dnf call happens.
 echo "🔐 omarchy-mac-fedora installation requires administrator access..."
-if ! sudo -v; then
+bash "$OMARCHY_INSTALL/helpers/fedora-gum.sh"
+if ! sudo true; then
   echo "❌ Could not obtain sudo access." >&2
   echo "   Run this as a regular user in the 'wheel' group - not with 'sudo bash install.sh'." >&2
   echo "   If an earlier run left a broken rule behind, clear it and re-check:" >&2
@@ -109,7 +112,6 @@ abort_install() {
 }
 
 # --- Preflight ---------------------------------------------------------------
-run_user "$OMARCHY_INSTALL/helpers/fedora-gum.sh"
 run_user "$OMARCHY_INSTALL/preflight/passwordless-installer.sh"
 run_user "$OMARCHY_INSTALL/preflight/locale.sh"
 run_user "$OMARCHY_INSTALL/preflight/identification.sh"
