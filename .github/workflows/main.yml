@@ -60,7 +60,33 @@ jobs:
           shellcheck --version
           # Only fail on actual errors; exclude network/dynamic source checks
           # Exclude migrations/ to avoid flagging historical scripts
-          shellcheck -S error -e SC1090,SC1091 $(git ls-files | grep -E '\.sh$|^scripts/.*' | grep -v '^migrations/')
+          #
+          # install/ ships fragments that the installer sources rather than executes, and upstream
+          # gives them no shebang. Shellcheck cannot infer a dialect without one and fails every
+          # such file with SC2148, so name the shell for those instead of adding shebangs that the
+          # next upstream sync would only drop again.
+          mapfile -t files < <(git ls-files | grep -E '\.sh$|^scripts/.*' | grep -v '^migrations/')
+
+          with_shebang=()
+          without_shebang=()
+          for file in "${files[@]}"; do
+            if head -n1 "$file" | grep -q '^#!'; then
+              with_shebang+=("$file")
+            else
+              without_shebang+=("$file")
+            fi
+          done
+
+          echo "With shebang: ${#with_shebang[@]}, without: ${#without_shebang[@]}"
+
+          status=0
+          if [ ${#with_shebang[@]} -gt 0 ]; then
+            shellcheck -S error -e SC1090,SC1091 "${with_shebang[@]}" || status=1
+          fi
+          if [ ${#without_shebang[@]} -gt 0 ]; then
+            shellcheck -s bash -S error -e SC1090,SC1091 "${without_shebang[@]}" || status=1
+          fi
+          exit $status
 
       - name: shfmt (check only)
         if: steps.list_scripts.outputs.count != '0'
