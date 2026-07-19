@@ -80,10 +80,10 @@ run_root() {
   omarchy_log_line "[$(date '+%Y-%m-%d %H:%M:%S')] Starting (root): $script"
 
   if omarchy_log_to_stdout; then
-    sudo bash -eE -c 'export OMARCHY_INSTALL="$1" OMARCHY_PATH="$2" OMARCHY_INSTALL_USER="$3" OMARCHY_FIRST_INSTALL="$4"; shift 4; source "$1"' \
+    sudo bash -eE -c 'export OMARCHY_INSTALL="$1" OMARCHY_PATH="$2" OMARCHY_INSTALL_USER="$3" OMARCHY_FIRST_INSTALL="$4" PATH="$2/bin:$PATH"; shift 4; source "$1"' \
       _ "$OMARCHY_INSTALL" "$OMARCHY_PATH" "$OMARCHY_INSTALL_USER" "$OMARCHY_FIRST_INSTALL" "$script" </dev/null 2>&1
   else
-    sudo bash -eE -c 'export OMARCHY_INSTALL="$1" OMARCHY_PATH="$2" OMARCHY_INSTALL_USER="$3" OMARCHY_FIRST_INSTALL="$4"; shift 4; source "$1"' \
+    sudo bash -eE -c 'export OMARCHY_INSTALL="$1" OMARCHY_PATH="$2" OMARCHY_INSTALL_USER="$3" OMARCHY_FIRST_INSTALL="$4" PATH="$2/bin:$PATH"; shift 4; source "$1"' \
       _ "$OMARCHY_INSTALL" "$OMARCHY_PATH" "$OMARCHY_INSTALL_USER" "$OMARCHY_FIRST_INSTALL" "$script" </dev/null >>"$OMARCHY_INSTALL_LOG_FILE" 2>&1
   fi
   exit_code=$?
