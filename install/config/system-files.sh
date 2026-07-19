@@ -20,9 +20,18 @@ install -Dm644 "$omarchy_default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
 
 # Systemd units: the user services and paths the session expects, the sleep hook, and the
 # faster-shutdown drop-in for user@.service.
+#
+# The units are written for the Arch package and call /usr/bin/omarchy-*, which does not exist here:
+# the fork's commands live in the clone at $OMARCHY_PATH/bin. systemd needs an absolute ExecStart and
+# will not search PATH, so the path is rewritten as the units are installed. That bakes the
+# installing user's clone path into a unit under /usr/lib, which suits this single-user install (the
+# same assumption install/login/sddm.sh already makes for autologin) but would need revisiting if the
+# fork ever supported several users.
 install -d /usr/lib/systemd/user
-cp -f "$omarchy_default"/systemd/user/*.service "$omarchy_default"/systemd/user/*.path \
-  /usr/lib/systemd/user/
+for unit in "$omarchy_default"/systemd/user/*.service "$omarchy_default"/systemd/user/*.path; do
+  sed "s|/usr/bin/omarchy-|$OMARCHY_PATH/bin/omarchy-|g" "$unit" \
+    >"/usr/lib/systemd/user/$(basename "$unit")"
+done
 install -Dm755 "$omarchy_default/systemd/system-sleep/unmount-fuse" \
   /usr/lib/systemd/system-sleep/unmount-fuse
 install -Dm644 "$omarchy_default/systemd/user@.service.d/faster-shutdown.conf" \
