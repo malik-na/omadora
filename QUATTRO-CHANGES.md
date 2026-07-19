@@ -57,9 +57,14 @@ If you had personal bindings in `~/.config/hypr/*.conf`, they need to move to th
 
 ## 5. New tools
 
-- First-party tools added upstream: **aether, cliamp, omacut, omawrite, tensaku, tobi-try**, and
-  **voxtype** (voice dictation). These ship as Arch packages upstream and have **no Fedora build
-  yet**, so this port does not install them until they are packaged for Fedora.
+- First-party tools added upstream: **aether** (wallpaper theming), **omacut** (video trimmer),
+  **omawrite** (writing), **tensaku** (screenshot annotation), **cliamp** (music player),
+  **tobi-try** (the `try` command), and **voxtype** (voice dictation). Upstream ships them as Arch
+  packages; each has a working aarch64 source (an upstream prebuilt binary or a small source build),
+  but the step that installs them on this Fedora port has not landed yet, so **they are not installed
+  by default today**. See [DEPENDENCIES.md](DEPENDENCIES.md) for the exact source of each.
+- **`asdcontrol` is dropped.** Upstream uses it to set the brightness of *external* Apple displays
+  (Studio Display / Pro Display XDR) over USB; an Asahi laptop's built-in screen does not need it.
 
 ## 6. Paths that moved
 

@@ -173,8 +173,8 @@ bash -lc 'command -v omarchy-menu omarchy-cmd-terminal-cwd uwsm-app'
 ## Update and maintenance
 
 - `Menu > Update > Omarchy` pulls the Omarchy repository, runs any pending migrations, and updates Fedora packages (`dnf upgrade --refresh`).
-- It also covers what `dnf` cannot reach: the Flatpak apps (Typora, LocalSend), the packages built from source (walker and elephant, at their pinned versions), and the Rust TUIs installed with cargo. `DEPENDENCIES.md` lists every external source and the mechanism that updates it.
-- Waybar update indicators track git divergence from your configured upstream branch.
+- It also covers what `dnf` cannot reach: the `--user` Flatpak apps (Obsidian, Moonlight), the npx-wrapped CLI tools, and the mise runtimes. `DEPENDENCIES.md` lists every external source and the mechanism that updates it.
+- Update availability is tracked as git divergence from your configured upstream branch.
 
 Check branch/upstream state:
 
