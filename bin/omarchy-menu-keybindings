@@ -322,6 +322,16 @@ dynamic_bindings() {
         key="${LUA_BIND_KEY_MAP["$modmask,$description"]}"
       fi
 
+      # Hyprland hands some binds the whole declaration in the key field - "SUPER + SHIFT +
+      # code:201" instead of "code:201" - which rendered as "SUPER SHIFT + SUPER + SHIFT +
+      # code:201" once the modifiers from modmask were prefixed too. modmask already carries the
+      # modifiers, so keep only the part after the last separator.
+      if [[ $key == *+* ]]; then
+        key="${key##*+}"
+        key="${key#"${key%%[![:space:]]*}"}"
+        key="${key%"${key##*[![:space:]]}"}"
+      fi
+
       if [[ $dispatcher == "__lua" && -n $description && -n $key ]]; then
         cache_key="$modmask,$description,$key"
         dispatcher="${LUA_BIND_DISPATCHER_MAP["$cache_key"]}"
