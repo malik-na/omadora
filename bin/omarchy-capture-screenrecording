@@ -145,14 +145,29 @@ recorder_backend() {
     return
   fi
 
-  local backend=wf-recorder
-  if command -v gpu-screen-recorder >/dev/null 2>&1 &&
-    gpu-screen-recorder --list-capture-options 2>&1 | grep -qv 'failed to load opengl' &&
-    ! gpu-screen-recorder --list-capture-options 2>&1 | grep -q 'unknown gpu vendor'; then
-    backend=gpu-screen-recorder
+  local backend=""
+
+  # Probe gpu-screen-recorder by what it prints, in one capture. Testing with
+  # `grep -qv` was wrong: it succeeds when *any* line fails to match, and gsr
+  # prints several lines, so a machine that could not load OpenGL still passed.
+  if command -v gpu-screen-recorder >/dev/null 2>&1; then
+    local probe
+    probe=$(gpu-screen-recorder --list-capture-options 2>&1)
+    if ! grep -qE 'unknown gpu vendor|failed to load opengl|for_each_active_monitor_output_drm failed' <<<"$probe"; then
+      backend=gpu-screen-recorder
+    fi
   fi
 
-  command -v "$backend" >/dev/null 2>&1 || backend=gpu-screen-recorder
+  # Fall back to wf-recorder only if it is actually installed; otherwise keep
+  # gpu-screen-recorder so the failure is its own error rather than "not found".
+  if [[ -z $backend ]]; then
+    if command -v wf-recorder >/dev/null 2>&1; then
+      backend=wf-recorder
+    else
+      backend=gpu-screen-recorder
+    fi
+  fi
+
   echo "$backend" | tee "$cache"
 }
 
