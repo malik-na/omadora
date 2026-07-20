@@ -1,57 +1,79 @@
 #!/bin/bash
 
-# omarchy:summary=Set the power profile to the requested level, falling back to balanced
-# omarchy:args=[autodetect|ac|battery|profile]
+# omarchy:summary=Set and remember the power profile for AC or battery use
+# omarchy:args=[autodetect|ac|battery] [power-saver|balanced|performance]
 
-# Accepts an abstract state (ac|battery), a concrete powerprofilesctl profile
-# name, or (with no argument / "autodetect") auto-detects AC vs battery.
-
+# Apple Silicon exposes no platform_profile interface, so power-profiles-daemon
+# has nothing to drive and powerprofilesctl may be absent or report no profiles
+# at all. Bail out with a clear message instead of erroring out of every caller
+# (the shell's battery service calls this on every AC/battery transition).
 if ! command -v powerprofilesctl >/dev/null 2>&1; then
-  notify-send "Power profile" "powerprofilesctl is not installed. Install power-profiles-daemon."
+  echo "powerprofilesctl is not installed - power profiles are unavailable" >&2
+  exit 0
+fi
+
+action="${1:-autodetect}"
+requested_profile="${2:-}"
+
+usage() {
+  echo "Usage: omarchy-powerprofiles-set [autodetect|ac|battery] [power-saver|balanced|performance]" >&2
   exit 1
-fi
+}
 
-action="${1-}"
-
-# Auto-detect when called with no argument: treat any Mains or USB
-# power-supply device reporting online=1 as "on AC". This handles
-# USB-C only laptops where the legacy AC device may not fire udev
-# events, and also avoids false negatives from per-port USB-C devices
-# that are present-but-empty (online=0) while another port supplies power.
-if [[ -z $action || $action == "autodetect" ]]; then
-  # On plug/unplug, udev fires the rule before sysfs `online` is updated
-  # on some laptops (notably Lenovo Yoga Pro 7 with USB-C charging). A
-  # short settle delay lets the kernel update before we read state.
-  sleep 0.3
-
-  action=battery
-  for ps in /sys/class/power_supply/*; do
-    [[ -r $ps/online && -r $ps/type ]] || continue
-    type=$(cat "$ps/type")
-    [[ $type == "Mains" || $type == "USB" ]] || continue
-    if [[ $(cat "$ps/online") == "1" ]]; then
-      action=ac
-      break
-    fi
-  done
-fi
-
-mapfile -t profiles < <(powerprofilesctl list | awk '/^\s*[* ]\s*[a-zA-Z0-9\-]+:$/ { gsub(/^[*[:space:]]+|:$/,""); print }')
+(( $# <= 2 )) || usage
 
 case "$action" in
-  ac)
-    # Prefer performance, fall back to balanced
-    if [[ " ${profiles[*]} " == *" performance "* ]]; then
-      powerprofilesctl set performance
+  autodetect)
+    # Use the same signal as the shell (UPower.onBattery) so every entry point
+    # saves and restores the profile under the same ac/battery key.
+    if [[ $(busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery 2>/dev/null) == "b true" ]]; then
+      action=battery
     else
-      powerprofilesctl set balanced
+      action=ac
     fi
     ;;
-  battery)
-    powerprofilesctl set balanced
-    ;;
-  *)
-    # Concrete profile name (e.g. selected from the Omarchy menu)
-    powerprofilesctl set "$action"
-    ;;
+  ac | battery) ;;
+  *) usage ;;
 esac
+
+mapfile -t profiles < <(powerprofilesctl list 2>/dev/null | awk '/^\s*[* ]\s*[a-zA-Z0-9\-]+:$/ { gsub(/^[*[:space:]]+|:$/,""); print }')
+
+# No profiles at all is the normal state on hardware without a platform_profile
+# backend, Apple Silicon included. There is nothing to set, so do not try.
+if ((${#profiles[@]} == 0)); then
+  echo "No power profiles are available on this hardware" >&2
+  exit 0
+fi
+
+profile_available() {
+  [[ " ${profiles[*]} " == *" $1 "* ]]
+}
+
+state_dir="${OMARCHY_POWERPROFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/powerprofiles}"
+state_file="$state_dir/$action"
+
+if [[ -n $requested_profile ]]; then
+  profile_available "$requested_profile" || {
+    echo "Power profile is not available: $requested_profile" >&2
+    exit 1
+  }
+
+  profile="$requested_profile"
+elif [[ -r $state_file ]]; then
+  profile=$(<"$state_file")
+fi
+
+if [[ -z ${profile:-} ]] || ! profile_available "$profile"; then
+  if [[ $action == "ac" ]] && profile_available performance; then
+    profile=performance
+  else
+    profile=balanced
+  fi
+fi
+
+powerprofilesctl set "$profile" || exit
+
+if [[ -n $requested_profile ]]; then
+  mkdir -p "$state_dir"
+  printf '%s\n' "$requested_profile" >"$state_file"
+fi

@@ -126,7 +126,7 @@ Item {
     var command = String(action || "")
     if (!command) return
 
-    Quickshell.execDetached(Util.hyprExecCommand(command))
+    Util.execDetached(command)
   }
 
   function rowHeightForDetail(detail) {
@@ -228,7 +228,7 @@ Item {
     "power-profiles": {
       script: "current=$(powerprofilesctl get 2>/dev/null); omarchy-powerprofiles-list 2>/dev/null | while read -r p; do [[ -z $p ]] && continue; printf '%s\\t%s\\t%s\\n' \"$p\" \"$p\" \"$current\"; done",
       icon: "\udb81\udc0b",
-      actionFor: function(value) { return "powerprofilesctl set '" + value.replace(/'/g, "'\\''") + "'" },
+      actionFor: function(value) { return "omarchy-powerprofiles-set autodetect '" + value.replace(/'/g, "'\\''") + "'" },
       keywordsFor: function(value) { return value + " power profile" }
     }
   })
@@ -837,9 +837,11 @@ Item {
             if (root.filterText) root.setFilter("")
             else root.cancel()
             event.accepted = true
-          } else if (event.key === Qt.Key_Backspace) {
-            if (root.filterText.length > 0) root.setFilter(root.filterText.slice(0, -1))
-            else root.goBack()
+          } else if (Util.editsFilter(event, root.filterText)) {
+            root.setFilter(Util.editedFilter(event, root.filterText))
+            event.accepted = true
+          } else if (event.key === Qt.Key_Backspace && !root.filterText) {
+            root.goBack()
             event.accepted = true
           } else if (event.key === Qt.Key_Up) {
             root.select(-1)
