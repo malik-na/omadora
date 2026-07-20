@@ -36,12 +36,25 @@ o.bind("SUPER + CTRL + ALT + Delete", "Toggle laptop display mirroring", "omarch
 o.bind("switch:on:Lid Switch", nil, "omarchy-hyprland-monitor-clamshell", { locked = true })
 o.bind("switch:off:Lid Switch", nil, "omarchy-hyprland-monitor-clamshell", { locked = true })
 
+-- Capture. Every binding here is duplicated onto the function row because Apple
+-- keyboards have no Print key at all, which left screenshots, screen recording,
+-- the colour picker and OCR unreachable on this hardware. The PRINT bindings
+-- stay for external keyboards that do have the key; the pre-quattro Mac fork
+-- maps the same commands onto SUPER + F10/F11/F12 the same way.
 o.bind("PRINT", "Screenshot", "omarchy-capture-screenshot")
+o.bind("SUPER + F11", "Screenshot region", "omarchy-capture-screenshot region")
+o.bind("SUPER + F12", "Screenshot display", "omarchy-capture-screenshot fullscreen")
+o.bind("SUPER + F10", "Screenshot window", "omarchy-capture-screenshot windows")
 o.bind("ALT + PRINT", "Screenrecording", "omarchy-capture-screenrecording --stop-recording || omarchy-menu toggle trigger.capture.screenrecord")
+o.bind("SUPER + ALT + F11", "Screenrecording", "omarchy-capture-screenrecording --stop-recording || omarchy-menu toggle trigger.capture.screenrecord")
 o.bind("SUPER + ALT + code:34", "Make webcam overlay smaller", "omarchy-capture-webcam-resize smaller")
 o.bind("SUPER + ALT + code:35", "Make webcam overlay larger", "omarchy-capture-webcam-resize larger")
 o.bind("SUPER + PRINT", "Color picker", "pkill hyprpicker || hyprpicker -a")
+-- F9 alone is dictation (toggles/voxtype.lua), so the picker sits on SUPER + F10
+-- with SHIFT rather than adding a second meaning to that key.
+o.bind("SUPER + SHIFT + F10", "Color picker", "pkill hyprpicker || hyprpicker -a")
 o.bind("SUPER + CTRL + PRINT", "Extract text (OCR) from screenshot", "omarchy-capture-text")
+o.bind("SUPER + CTRL + F11", "Extract text (OCR) from screenshot", "omarchy-capture-text")
 
 -- While the slurp region picker is open, Return captures the entire focused
 -- monitor. The bind lives exactly as long as a selection layer is on screen
