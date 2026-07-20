@@ -2,6 +2,10 @@
 Description=Bluetooth pairing agent (auto-accept)
 Documentation=man:bt-agent(1)
 ConditionPathIsDirectory=/sys/class/bluetooth
+# Skip rather than fail when bluez-tools is not installed. A missing binary exits
+# 203/EXEC, and with Restart=on-failure that floods the session with failed-unit
+# notifications instead of quietly doing nothing.
+ConditionPathExists=/usr/bin/bt-agent
 # bluez must be reachable on the system bus before we can register.
 After=dbus.socket
 Requires=dbus.socket

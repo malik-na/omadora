@@ -150,6 +150,10 @@ wireplumber
 pulseaudio-utils
 pipewire-pulseaudio
 bluez
+# bt-agent (bluez-tools) is the pairing agent default/systemd/user/bt-agent.service starts. Without
+# it the unit fails with status=203/EXEC and, because it restarts on failure, buries the session in
+# "failed unit detected" notifications until the shell falls over.
+bluez-tools
 plymouth
 cups
 cups-browsed
