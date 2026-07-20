@@ -5,8 +5,14 @@ o.bind("XF86AudioMute", "Mute", "omarchy-audio-output-volume mute-toggle", { loc
 o.bind("XF86AudioMicMute", "Mute microphone", "omarchy-audio-input-mute", { locked = true })
 o.bind("XF86MonBrightnessUp", "Brightness up", "omarchy-brightness-display +5%", { locked = true, repeating = true })
 o.bind("XF86MonBrightnessDown", "Brightness down", "omarchy-brightness-display 5%-", { locked = true, repeating = true })
-o.bind("SHIFT + XF86MonBrightnessUp", "Brightness maximum", "omarchy-brightness-display 100%", { locked = true, repeating = true })
-o.bind("SHIFT + XF86MonBrightnessDown", "Brightness minimum", "omarchy-brightness-display 1%", { locked = true, repeating = true })
+-- Keyboard backlight on Shift, because Apple laptop keyboards have no dedicated keys for it: the
+-- Mac function row emits only KEY_BRIGHTNESSUP/DOWN (F1/F2), and KEY_KBDILLUMUP/DOWN never arrive,
+-- so the XF86KbdBrightness* binds below could not fire on this hardware. The pre-quattro Mac fork
+-- solves it the same way. SHIFT + XF86MonBrightness* is therefore spoken for, and the
+-- "Brightness maximum/minimum" binds that used to sit on it are gone - they would shadow these.
+o.bind("SHIFT + XF86MonBrightnessUp", "Keyboard brightness up", "omarchy-brightness-keyboard up", { locked = true, repeating = true })
+o.bind("SHIFT + XF86MonBrightnessDown", "Keyboard brightness down", "omarchy-brightness-keyboard down", { locked = true, repeating = true })
+-- Kept for external keyboards that do emit the dedicated keys.
 o.bind("XF86KbdBrightnessUp", "Keyboard brightness up", "omarchy-brightness-keyboard up", { locked = true, repeating = true })
 o.bind("XF86KbdBrightnessDown", "Keyboard brightness down", "omarchy-brightness-keyboard down", { locked = true, repeating = true })
 o.bind("XF86KbdLightOnOff", "Keyboard backlight cycle", "omarchy-brightness-keyboard cycle", { locked = true })
