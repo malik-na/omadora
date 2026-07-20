@@ -85,10 +85,14 @@ sudo dnf install -y git
 
 # --- Clone -------------------------------------------------------------------
 
-OMARCHY_REPO="${OMARCHY_REPO:-eightscrow/omarchy-mac-fedora-quattro}"
-OMARCHY_BRANCH="${OMARCHY_REF:-quattro}"
+# Both are overridable, so a fork or a topic branch can be installed without editing this file:
+#   OMARCHY_REPO=you/your-fork OMARCHY_REF=your-branch bash boot.sh
+# The branch is empty by default so the clone follows the repository's default branch, and the
+# installed checkout tracks whatever it was cloned from - `omarchy update` pulls from there.
+OMARCHY_REPO="${OMARCHY_REPO:-malik-na/omarchy-mac-fedora}"
+OMARCHY_BRANCH="${OMARCHY_REF:-}"
 
-echo -e "\nCloning from https://github.com/${OMARCHY_REPO}.git (branch: ${OMARCHY_BRANCH})"
+echo -e "\nCloning from https://github.com/${OMARCHY_REPO}.git (branch: ${OMARCHY_BRANCH:-default})"
 
 if [[ -d ~/.local/share/omarchy ]]; then
   echo -e "\n⚠️  \e[33mExisting installation found at ~/.local/share/omarchy/\e[0m"
@@ -104,7 +108,11 @@ if [[ -d ~/.local/share/omarchy ]]; then
 fi
 
 rm -rf ~/.local/share/omarchy/
-git clone -b "$OMARCHY_BRANCH" "https://github.com/${OMARCHY_REPO}.git" ~/.local/share/omarchy >/dev/null
+if [[ -n $OMARCHY_BRANCH ]]; then
+  git clone -b "$OMARCHY_BRANCH" "https://github.com/${OMARCHY_REPO}.git" ~/.local/share/omarchy >/dev/null
+else
+  git clone "https://github.com/${OMARCHY_REPO}.git" ~/.local/share/omarchy >/dev/null
+fi
 
 echo -e "\nInstallation starting..."
 bash ~/.local/share/omarchy/install.sh

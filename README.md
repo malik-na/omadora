@@ -124,10 +124,13 @@ Clone and run the installer:
 
 ```bash
 sudo dnf update
-git clone -b quattro https://github.com/eightscrow/omarchy-mac-fedora-quattro.git ~/.local/share/omarchy
+git clone https://github.com/malik-na/omarchy-mac-fedora.git ~/.local/share/omarchy
 cd ~/.local/share/omarchy
 bash install.sh
 ```
+
+`omarchy update` pulls from wherever you cloned, so a fork installs and updates from that fork
+without any extra configuration.
 
 ---
 
