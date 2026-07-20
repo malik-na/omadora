@@ -11,6 +11,11 @@ egl-wayland
 pipewire-gstreamer
 gtk4-layer-shell
 pulseaudio-libs
+# NetworkManager's default Wi-Fi backend. It is not a NetworkManager dependency and Fedora Asahi
+# Minimal does not necessarily carry it, so dropping iwd without installing this left a machine
+# with no Wi-Fi backend at all: every password prompt hung, in nmcli and in the Omarchy network
+# menu alike, because NetworkManager had nothing to authenticate with.
+wpa_supplicant
 tiny-dfr
 glycin-loaders
 wget2-wget
@@ -27,7 +32,8 @@ zram-generator
 #   over: the profile NetworkManager saved through wpa_supplicant kept rejecting the correct
 #   password afterwards, because iwd has none of its credentials. hardware/network.sh disables
 #   iwd.service anyway, so the two steps contradicted each other. NetworkManager keeps its default
-#   wpa_supplicant backend, as in 3.8.3 (whose install.sh never ran the finalize step).
+#   wpa_supplicant backend, as in 3.8.3 (whose install.sh never ran the finalize step) - and
+#   wpa_supplicant is now listed above, since removing iwd without it leaves no backend at all.
 # - tiny-dfr: Touch Bar daemon - relevant on M1/M2 MacBook Pro 13" under Fedora Asahi
 # - limine, limine-mkinitcpio-hook, limine-snapper-sync, linux, linux-headers, linux-firmware,
 #   base, base-devel, dkms, yay-debug: Arch boot/packaging stack - Fedora Asahi boots via its own
