@@ -24,8 +24,14 @@ uwsm
 # quickshell is an official Fedora 44 aarch64 package - no COPR needed.
 quickshell
 
-# Desktop - capture (gpu-screen-recorder replaces wf-recorder/wl-screenrec; lionheartp COPR)
+# Desktop - capture. Upstream quattro records with gpu-screen-recorder alone, but that binary
+# dispatches on the GPU vendor string and rejects Apple Silicon outright: on Asahi both its kms and
+# its portal backend fail with "unknown gpu vendor: Mesa" / "failed to load opengl", so no recording
+# ever started. wf-recorder goes through wlr-screencopy instead of vendor-specific GL, the same
+# wlroots path grim already uses successfully here, so it is what actually records on this hardware.
+# gpu-screen-recorder stays installed and is still preferred where it works.
 gpu-screen-recorder
+wf-recorder
 grim
 slurp
 

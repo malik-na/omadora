@@ -127,6 +127,37 @@ select_capture_target() {
   echo "region:${BASH_REMATCH[3]}x${BASH_REMATCH[4]}+${BASH_REMATCH[1]}+${BASH_REMATCH[2]}"
 }
 
+# gpu-screen-recorder dispatches on the GPU vendor string and rejects anything it does not
+# recognise. On Apple Silicon it reports "unknown gpu vendor: Mesa" and then "failed to load
+# opengl", for both the kms and the portal backend, so it never records a frame here. wf-recorder
+# captures through wlr-screencopy instead - no vendor-specific GL - which is the same wlroots path
+# grim already uses successfully on this hardware. Probe once and cache the answer: gpu-screen-
+# recorder stays preferred wherever it actually works, and OMARCHY_SCREENRECORDER forces either.
+recorder_backend() {
+  if [[ -n ${OMARCHY_SCREENRECORDER:-} ]]; then
+    echo "$OMARCHY_SCREENRECORDER"
+    return
+  fi
+
+  local cache="${XDG_RUNTIME_DIR:-/tmp}/omarchy-screenrecorder-backend"
+  if [[ -s $cache ]]; then
+    cat "$cache"
+    return
+  fi
+
+  local backend=wf-recorder
+  if command -v gpu-screen-recorder >/dev/null 2>&1 &&
+    gpu-screen-recorder --list-capture-options 2>&1 | grep -qv 'failed to load opengl' &&
+    ! gpu-screen-recorder --list-capture-options 2>&1 | grep -q 'unknown gpu vendor'; then
+    backend=gpu-screen-recorder
+  fi
+
+  command -v "$backend" >/dev/null 2>&1 || backend=gpu-screen-recorder
+  echo "$backend" | tee "$cache"
+}
+
+RECORDER_PATTERN='^(gpu-screen-recorder|wf-recorder)$'
+
 start_screenrecording() {
   local capture_args=()
   local target
@@ -171,8 +202,29 @@ start_screenrecording() {
 
   [[ -n $audio_devices ]] && audio_args+=(-a "$audio_devices" -ac aac)
 
-  echo "===== $(date '+%F %T') args: $* target: $target =====" >>"$LOG_FILE"
-  gpu-screen-recorder "${capture_args[@]}" -k auto -f 60 -fm cfr -fallback-cpu-encoding yes -o "$filename" "${audio_args[@]}" 2>>"$LOG_FILE" &
+  local backend
+  backend=$(recorder_backend)
+  echo "===== $(date '+%F %T') args: $* target: $target backend: $backend =====" >>"$LOG_FILE"
+
+  if [[ $backend == wf-recorder ]]; then
+    # wf-recorder takes the monitor as -o and a region as -g "X,Y WxH"; it has no portal backend,
+    # so a portal target falls back to the focused monitor. Audio is a single -a device.
+    local wf_args=()
+    case $target in
+    monitor:*) wf_args=(-o "${target#monitor:}") ;;
+    region:*)
+      [[ ${target#region:} =~ ^([0-9]+)x([0-9]+)\+(-?[0-9]+)\+(-?[0-9]+)$ ]] &&
+        wf_args=(-g "${BASH_REMATCH[3]},${BASH_REMATCH[4]} ${BASH_REMATCH[1]}x${BASH_REMATCH[2]}")
+      ;;
+    *) wf_args=(-o "$(omarchy-hyprland-monitor-focused)") ;;
+    esac
+
+    [[ $DESKTOP_AUDIO == "true" || $MICROPHONE_AUDIO == "true" ]] && wf_args+=(-a)
+
+    wf-recorder "${wf_args[@]}" -f "$filename" 2>>"$LOG_FILE" &
+  else
+    gpu-screen-recorder "${capture_args[@]}" -k auto -f 60 -fm cfr -fallback-cpu-encoding yes -o "$filename" "${audio_args[@]}" 2>>"$LOG_FILE" &
+  fi
   local pid=$!
 
   while kill -0 $pid 2>/dev/null && [[ ! -f $filename ]]; do
@@ -186,11 +238,11 @@ start_screenrecording() {
 }
 
 stop_screenrecording() {
-  pkill -SIGINT -f "^gpu-screen-recorder" # SIGINT required to save video properly
+  pkill -SIGINT -f "$RECORDER_PATTERN" # SIGINT required to save video properly
 
   # Wait a maximum of 5 seconds to finish before hard killing
   local count=0
-  while pgrep -f "^gpu-screen-recorder" >/dev/null && ((count < 50)); do
+  while pgrep -f "$RECORDER_PATTERN" >/dev/null && ((count < 50)); do
     sleep 0.1
     count=$((count + 1))
   done
@@ -198,8 +250,8 @@ stop_screenrecording() {
   toggle_screenrecording_indicator
   cleanup_webcam
 
-  if pgrep -f "^gpu-screen-recorder" >/dev/null; then
-    pkill -9 -f "^gpu-screen-recorder"
+  if pgrep -f "$RECORDER_PATTERN" >/dev/null; then
+    pkill -9 -f "$RECORDER_PATTERN"
     omarchy-notification-send -u critical -t 5000 "Screen recording error" "Recording process had to be force-killed. Video may be corrupted."
   else
     finalize_recording
@@ -226,7 +278,7 @@ toggle_screenrecording_indicator() {
 }
 
 screenrecording_active() {
-  pgrep -f "^gpu-screen-recorder" >/dev/null
+  pgrep -f "$RECORDER_PATTERN" >/dev/null
 }
 
 finalize_recording() {
