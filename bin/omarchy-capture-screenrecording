@@ -171,7 +171,12 @@ recorder_backend() {
   echo "$backend" | tee "$cache"
 }
 
-RECORDER_PATTERN='^(gpu-screen-recorder|wf-recorder)$'
+# Match on the process name (-x), not the full command line. `pgrep -f` compares
+# against the whole command line, so an anchored '^(...)$' never matched a real
+# invocation like `wf-recorder -g "626,298 549x411" -f /home/.../out.mp4`: the
+# recording could not be found, so it was never stopped and never showed as
+# active - it just kept running.
+RECORDER_PATTERN='gpu-screen-recorder|wf-recorder'
 
 start_screenrecording() {
   local capture_args=()
@@ -253,11 +258,11 @@ start_screenrecording() {
 }
 
 stop_screenrecording() {
-  pkill -SIGINT -f "$RECORDER_PATTERN" # SIGINT required to save video properly
+  pkill -SIGINT -x "$RECORDER_PATTERN" # SIGINT required to save video properly
 
   # Wait a maximum of 5 seconds to finish before hard killing
   local count=0
-  while pgrep -f "$RECORDER_PATTERN" >/dev/null && ((count < 50)); do
+  while pgrep -x "$RECORDER_PATTERN" >/dev/null && ((count < 50)); do
     sleep 0.1
     count=$((count + 1))
   done
@@ -265,8 +270,8 @@ stop_screenrecording() {
   toggle_screenrecording_indicator
   cleanup_webcam
 
-  if pgrep -f "$RECORDER_PATTERN" >/dev/null; then
-    pkill -9 -f "$RECORDER_PATTERN"
+  if pgrep -x "$RECORDER_PATTERN" >/dev/null; then
+    pkill -9 -x "$RECORDER_PATTERN"
     omarchy-notification-send -u critical -t 5000 "Screen recording error" "Recording process had to be force-killed. Video may be corrupted."
   else
     finalize_recording
@@ -293,7 +298,7 @@ toggle_screenrecording_indicator() {
 }
 
 screenrecording_active() {
-  pgrep -f "$RECORDER_PATTERN" >/dev/null
+  pgrep -x "$RECORDER_PATTERN" >/dev/null
 }
 
 finalize_recording() {

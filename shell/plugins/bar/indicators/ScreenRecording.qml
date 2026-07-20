@@ -15,7 +15,11 @@ BarIndicator {
 
   function refresh() {
     if (!root.bar || statusProc.running) return
-    statusProc.command = ["pgrep", "--quiet", "-f", "^gpu-screen-recorder"]
+    // Match either recorder. omarchy-capture-screenrecording falls back to
+    // wf-recorder where gpu-screen-recorder cannot run (Apple Silicon), and
+    // looking only for gpu-screen-recorder left the indicator hidden during a
+    // wf-recorder capture - so there was nothing to press to stop it.
+    statusProc.command = ["pgrep", "--quiet", "-x", "gpu-screen-recorder|wf-recorder"]
     statusProc.running = true
   }
 
