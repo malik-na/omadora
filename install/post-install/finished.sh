@@ -36,12 +36,6 @@ else
   echo_in_style "Finished installing"
 fi
 
-if ! command -v swayosd-server &>/dev/null; then
-  echo
-  echo "Note: swayosd is unavailable, so on-screen volume/brightness OSD is disabled."
-  echo "Install later with: sudo dnf copr enable -y erikreider/swayosd && sudo dnf install -y swayosd"
-fi
-
 # Drop the temporary installer sudoers rule here, not just in the EXIT trap:
 # the trap must not race the shutdown when the user picks Reboot Now.
 sudo rm -f /etc/sudoers.d/99-omarchy-installer 2>/dev/null || true

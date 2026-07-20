@@ -17,6 +17,18 @@ The default source for almost everything. Nothing special is configured.
 |---|---|
 | `fedora`, `updates` (Fedora 44, aarch64) | the bulk of the package set - **Quickshell** (the whole bar/launcher/OSD shell, an official Fedora package), Chromium, foot, Alacritty, SDDM, PipeWire, fonts, snapper, Docker, Java, and so on. See `install/omarchy-base.packages.fedora` and `install/omarchy-other.packages.fedora`. |
 
+Three Fedora packages are here for reasons that are not obvious from upstream, and removing any of
+them breaks something that worked:
+
+- **`wf-recorder`** - what actually records the screen on Apple Silicon. `gpu-screen-recorder` is
+  installed too and stays preferred where it works, but it dispatches on the GPU vendor string and
+  refuses this hardware outright, on both of its backends.
+- **`wpa_supplicant`** - NetworkManager's default Wi-Fi backend. It is *not* a NetworkManager
+  dependency, and Fedora Asahi Minimal can arrive with only `iwd`. Dropping `iwd` without this
+  leaves the machine with no Wi-Fi backend at all and every password prompt hangs.
+- **`bluez-tools`** - provides `/usr/bin/bt-agent`, which `bt-agent.service` runs. Without it the
+  unit fails 203/EXEC on a restart loop and buries the session in failed-unit notifications.
+
 **Fedora 44 is required.** Several packages the older lists used no longer exist on 43, and the
 Hyprland build Omarchy targets is only published for the 44 chroot. Every entry point stops on an
 older release and prints the upgrade instructions.
@@ -60,6 +72,13 @@ lists both as dead repos so upgrades remove them from existing installs.
 | Repository | Provides | Added by |
 |---|---|---|
 | [`repo.nordvpn.com`](https://repo.nordvpn.com/yum/nordvpn/centos/) | `nordvpn` | `omarchy-install-service-nordvpn` |
+| [`brave-browser-rpm-release.s3.brave.com`](https://brave-browser-rpm-release.s3.brave.com/) | `brave-browser`, `brave-origin` | `omarchy-install-browser brave` / `brave-origin` |
+
+Brave's own repository is where the fork gets both browsers; upstream installs `brave-bin` and
+`brave-origin-bin` from the AUR, which does not exist here. The key is imported with `rpm --import`
+before the repo file is written, so `gpgcheck` stays on. Note that the package is named
+`brave-origin` here, not the `brave-origin-bin` upstream renamed to - and it is already the stable
+release, so upstream's beta-to-stable migration is a no-op on Fedora.
 
 Not a COPR and not enabled by default: nothing installs it until the user picks NordVPN from the
 menu. NordVPN supports Fedora 32+ officially and publishes aarch64 builds. Their documented method
@@ -155,7 +174,8 @@ covers what dnf cannot reach:
 
 No AUR, no `pacman`/`yay`/`paru`, no `mkinitcpio`, no `limine` - those are upstream Omarchy's, and
 every path here goes through `dnf`, `rpm` and COPR instead. Boot and initramfs are `dracut` and
-`grub-btrfs`. The terminal is `alacritty`, not ghostty. No waybar, walker, elephant, mako or swayosd
+`grub-btrfs`. The default terminal is `alacritty`, not ghostty; foot, ghostty and kitty are
+available through `omarchy-install-terminal`, and their configs ship pre-seeded either way. No waybar, walker, elephant, mako or swayosd
 either - quattro retired them, and the one Quickshell shell does all of it. x86-only hardware support
 (NVIDIA, Intel, Dell, ASUS, Lenovo, Framework) is present but never wired in: it is guarded by
 `omarchy-hw-*` checks that cannot match on Apple Silicon.

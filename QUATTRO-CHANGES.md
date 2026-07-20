@@ -21,7 +21,8 @@ It applies to this Fedora Asahi (Apple Silicon) port.
 | **swayosd** (volume/brightness OSD) | → dropped → **Quickshell** OSD |
 | **swaybg** (wallpaper) | → dropped → **Quickshell** background service |
 | **hyprlock / hypridle** (lock / idle) | → dropped → **Quickshell** lock + idle service |
-| **wf-recorder / wl-screenrec / wayfreeze / satty** | → dropped → **gpu-screen-recorder** + shell capture |
+| **wl-screenrec / wayfreeze / satty** | → dropped → **gpu-screen-recorder** + shell capture |
+| **wf-recorder** | → kept — see below, it is what records on Apple Silicon |
 
 The shell also adds things that did not exist before: a clipboard-history overlay, an emoji picker,
 reminders, a theme-aware polkit (password) dialog, and a system-tray, all inside the one shell.
@@ -90,7 +91,27 @@ Asahi fork deliberately keeps its own way:
   from its own branch, so Update > Channel is gone. `omarchy-channel-set` still exists for manual use.
 - **NetworkManager keeps its default `wpa_supplicant` backend.** The fork used to swap it to `iwd`
   at the end of the install, which broke the Wi-Fi the install was made over — the saved profile
-  kept rejecting the right password because `iwd` never had its credentials.
+  kept rejecting the right password because `iwd` never had its credentials. `wpa_supplicant` is
+  installed explicitly: it is not a NetworkManager dependency, and without it the machine is left
+  with no Wi-Fi backend at all.
+- **Screen recording falls back to `wf-recorder`.** Upstream quattro records with
+  `gpu-screen-recorder` alone, but that binary dispatches on the GPU vendor string and rejects
+  Apple Silicon outright (`unknown gpu vendor: Mesa`, then `failed to load opengl`) — on both its
+  kms and its portal backend, so nothing records. `wf-recorder` captures through `wlr-screencopy`
+  instead, the same wlroots path `grim` already uses here. `omarchy-capture-screenrecording` probes
+  `gpu-screen-recorder` once and uses it wherever it works, so this costs nothing on other
+  hardware; `OMARCHY_SCREENRECORDER` forces either one.
+- **Capture keybindings are on the function row.** Apple keyboards have no Print key, which left
+  every `PRINT`-based capture binding unreachable. Screenshots are `SUPER + F10/F11/F12` (window,
+  region, display), screen recording is `SUPER + ALT + F11`, OCR is `SUPER + CTRL + F11`, and the
+  colour picker is `SUPER + SHIFT + F10`. The `PRINT` bindings remain for external keyboards.
+- **Keyboard backlight is on `SHIFT` + the brightness keys.** The Mac function row emits only
+  `KEY_BRIGHTNESSUP`/`DOWN`; `KEY_KBDILLUMUP`/`DOWN` never arrive, so the dedicated
+  `XF86KbdBrightness*` bindings cannot fire on this hardware.
+- **Power profiles are inert.** Apple Silicon exposes no `platform_profile` interface, so
+  `power-profiles-daemon` has nothing to drive. `omarchy-powerprofiles-set` exits cleanly when
+  `powerprofilesctl` is missing or lists no profiles, rather than erroring out of the shell's
+  battery service on every AC transition.
 - **`firewalld`**, not UFW.
 - **aarch64 / Apple Silicon only** — Intel, NVIDIA, Framework, ASUS, Surface, Dell, and Apple T2
   (Intel-Mac) hardware paths are skipped.
