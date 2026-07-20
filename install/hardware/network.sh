@@ -1,5 +1,19 @@
 # NetworkManager enablement is centralized in enable-services.sh.
-systemctl disable iwd.service 2>/dev/null || true
+#
+# Retire iwd and hand Wi-Fi to wpa_supplicant, NetworkManager's default and only
+# non-experimental backend (NetworkManager.conf(5) marks iwd "(experimental)").
+# Fedora Asahi Minimal can arrive with iwd driving Wi-Fi and a wifi.backend=iwd
+# drop-in in place; left alone, NetworkManager hands connections to iwd, which
+# rejects them with "net.connman.iwd.Failed: Operation failed" once its own
+# credential store no longer matches the saved profile - the correct password is
+# refused, with nothing in the UI explaining why. Disabling iwd without starting
+# wpa_supplicant is worse still: NetworkManager is then left with no backend at
+# all and every password prompt hangs, so both halves happen here, in order.
+rm -f /etc/NetworkManager/conf.d/10-wifi-backend.conf
+systemctl disable --now iwd.service 2>/dev/null || true
+systemctl unmask wpa_supplicant.service 2>/dev/null || true
+systemctl enable --now wpa_supplicant.service 2>/dev/null ||
+  echo "[WARNING] Could not start wpa_supplicant - Wi-Fi may be unavailable"
 
 # Fresh Omarchy uses NetworkManager. Archinstall's legacy "copy ISO network"
 # mode enabled systemd-networkd and dropped DHCP .network files that compete
