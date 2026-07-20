@@ -185,7 +185,6 @@ run_user "$OMARCHY_INSTALL/login/sddm.sh"
 run_user "$OMARCHY_INSTALL/login/dracut.sh"
 
 # --- Post-install ------------------------------------------------------------
-run_user "$OMARCHY_INSTALL/post-install/network-finalize.sh"
 run_root "$OMARCHY_INSTALL/post-install/udev.sh"
 run_root "$OMARCHY_INSTALL/post-install/localdb.sh"
 

@@ -11,7 +11,6 @@ egl-wayland
 pipewire-gstreamer
 gtk4-layer-shell
 pulseaudio-libs
-iwd
 tiny-dfr
 glycin-loaders
 wget2-wget
@@ -23,8 +22,12 @@ zram-generator
 #   name still resolves, but nothing in Fedora 44 ships a webp gdk-pixbuf loader. Image decoding
 #   for GTK4 apps moved to glycin, so glycin-loaders above is what actually renders webp.
 # - snapper: in the base list
-# - iwd stays: the fork keeps iwd as the NetworkManager wifi backend (deliberate; quattro's move
-#   away from iwd is not adopted)
+# - iwd: dropped. The installer used to swap NetworkManager's wifi backend to iwd at the very end
+#   (post-install/network-finalize.sh), which orphaned the connection the install itself was made
+#   over: the profile NetworkManager saved through wpa_supplicant kept rejecting the correct
+#   password afterwards, because iwd has none of its credentials. hardware/network.sh disables
+#   iwd.service anyway, so the two steps contradicted each other. NetworkManager keeps its default
+#   wpa_supplicant backend, as in 3.8.3 (whose install.sh never ran the finalize step).
 # - tiny-dfr: Touch Bar daemon - relevant on M1/M2 MacBook Pro 13" under Fedora Asahi
 # - limine, limine-mkinitcpio-hook, limine-snapper-sync, linux, linux-headers, linux-firmware,
 #   base, base-devel, dkms, yay-debug: Arch boot/packaging stack - Fedora Asahi boots via its own

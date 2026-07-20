@@ -88,7 +88,9 @@ Asahi fork deliberately keeps its own way:
   catches up. Nothing to do by hand either way.
 - **No update-channel picker.** Upstream lets the menu repoint the update source; this fork updates
   from its own branch, so Update > Channel is gone. `omarchy-channel-set` still exists for manual use.
-- **`iwd`** stays as the Wi-Fi backend for NetworkManager (a deliberate fork choice).
+- **NetworkManager keeps its default `wpa_supplicant` backend.** The fork used to swap it to `iwd`
+  at the end of the install, which broke the Wi-Fi the install was made over — the saved profile
+  kept rejecting the right password because `iwd` never had its credentials.
 - **`firewalld`**, not UFW.
 - **aarch64 / Apple Silicon only** — Intel, NVIDIA, Framework, ASUS, Surface, Dell, and Apple T2
   (Intel-Mac) hardware paths are skipped.

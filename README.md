@@ -78,7 +78,7 @@ Checklist:
 
 Use one of these methods from your Fedora Asahi session before running the installer.
 
-### Option 1: `nmcli` (NetworkManager CLI)
+Use `nmcli` (NetworkManager CLI):
 
 ```bash
 # Check network devices
@@ -88,19 +88,8 @@ nmcli device status
 nmcli device wifi connect "SSID_NAME" password "PASSWORD"
 ```
 
-### Option 2: `iwctl` (iwd)
-
-```bash
-iwctl
-# inside iwctl:
-# device list
-# station wlan0 scan
-# station wlan0 get-networks
-# station wlan0 connect "SSID_NAME"
-# exit
-```
-
-If `wlan0` does not exist on your system, replace it with your detected wireless interface name.
+The connection you make here carries over into the installed system: the installer leaves
+NetworkManager on its default `wpa_supplicant` backend and does not touch saved profiles.
 
 Fedora Asahi Minimal normally includes the required first-boot setup prompts; use these commands only to ensure networking is ready before install.
 
