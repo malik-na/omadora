@@ -3,14 +3,14 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("systemctl --user import-environment $(env | cut -d'=' -f 1)")
   hl.exec_cmd("dbus-update-activation-environment --systemd --all")
 
-  hl.exec_cmd("quickshell -n -p $OMARCHY_PATH/shell")
+  hl.exec_cmd("omarchy-launch-shell")
 
   -- Fedora Asahi has no disk encryption, so the boot password is entered at
   -- the shell lock instead, the way the pre-quattro hyprlock flow worked.
   -- The script polls the shell's IPC until the lock is up.
   hl.exec_cmd("omarchy-system-lock-boot")
   hl.exec_cmd(o.launch("fcitx5 --disable notificationitem"))
-  hl.exec_cmd("omarchy-first-run")
+  hl.exec_cmd("omarchy-provision-first-run")
   hl.exec_cmd("omarchy-powerprofiles-init")
   hl.exec_cmd(o.launch("omarchy-hyprland-monitor-watch"))
   hl.exec_cmd(o.launch("udiskie --automount --no-notify --no-tray"))

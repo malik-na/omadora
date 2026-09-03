@@ -1,9 +1,32 @@
+# Task Guides
+
+Deeper instructions for specific kinds of work live in `agents/skills/`. Read the
+matching guide before starting:
+
+- [`agents/skills/command-metadata.md`](agents/skills/command-metadata.md) - adding or changing commands in `bin/`
+- [`agents/skills/install-scripts.md`](agents/skills/install-scripts.md) - working under `install/` or on system/user setup commands
+- [`agents/skills/shell-dev.md`](agents/skills/shell-dev.md) - editing the Quickshell desktop under `shell/`
+- [`agents/skills/icon-font.md`](agents/skills/icon-font.md) - adding branded glyphs to `default/fonts/omarchy/omarchy.ttf`
+- [`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md) - writing or running graphical acceptance tests under `test/acceptance.d/`
+- [`agents/skills/visual-verification.md`](agents/skills/visual-verification.md) - verifying any change with a visual effect in the running UI
+- [`agents/skills/migrations.md`](agents/skills/migrations.md) - creating or changing migrations under `migrations/`
+
+# Documentation Layout
+
+Three documentation trees, split by genre and audience:
+
+- `agents/skills/` - task procedure ("do this when doing X"), for anyone working on the codebase
+- `docs/` - reference on how the system is shaped (file layout, update pipeline, theming, shell architecture), for anyone working on the codebase; skills link here for depth
+- `manual/` - end-user documentation for using Omarchy, published; never codebase internals
+
 # Style
 
+- In markdown documents (`plans/`, `docs/`, `manual/`), write full lines — no hard wrapping at 80 columns; break only at structural boundaries like headings and list items
 - Two spaces for indentation, no tabs
 - Use bash 5 conditionals: use `[[ ]]` for string/file tests and `(( ))` for numeric tests
 - In `[[ ]]`, don't quote variables, but do quote string literals when comparing values (e.g., `[[ $branch == "dev" ]]`)
 - Prefer `(( ))` over numeric operators inside `[[ ]]` (e.g., `(( count < 50 ))`, not `[[ $count -lt 50 ]]`)
+- Prefer a full `if`/`else` conditional for simple two-path control flow; don't rely on `exec` or `exit` in one branch to make following statements unreachable
 - For strings/paths with spaces, quote them instead of escaping spaces with `\ ` (e.g., `"$APP_DIR/Disk Usage.desktop"`, not `$APP_DIR/Disk\ Usage.desktop`)
 - Shebangs must use `#!/bin/bash` consistently (never `#!/usr/bin/env bash`)
 - Scripts under `install/` and `migrations/` may be sourced and intentionally omit shebangs
@@ -12,7 +35,9 @@
 
 All commands start with `omarchy-`. Prefixes indicate purpose.
 
-The authoritative command group list lives in `bin/omarchy` in `GROUP_DESCRIPTIONS`. Keep `GROUP_DESCRIPTIONS` updated when adding a new command prefix.
+The authoritative list of user-facing command groups lives in `bin/omarchy` in `GROUP_DESCRIPTIONS`. Keep `GROUP_DESCRIPTIONS` updated when adding a new command prefix users are meant to browse to.
+
+A group whose commands are all `# omarchy:hidden=true` gets no entry. That table drives the top-level group listing on its own, so an entry there advertises the group even when every command in it is hidden. `apply-` and `provision-` are deliberately absent for that reason; both still route, and `omarchy <group>` still prints a group header without one.
 
 Common prefixes include:
 
@@ -29,34 +54,9 @@ Common prefixes include:
 - `theme-` - theme management
 - `update-` - update components
 
-Other current prefixes include:
-
-- `ac-`, `audio-`, `battery-`, `branch-`, `brightness-`, `channel-`, `config-`, `debug-`, `dev-`, `drive-`, `first-`, `font-`, `haptic-`, `hibernation-`, `hook-`, `hyprland-`, `menu-`, `migrate-`, `notification-`, `npm-`, `plymouth-`, `powerprofiles-`, `reinstall-`, `remove-`, `screensaver-`, `show-`, `snapshot-`, `state-`, `sudo-`, `system-`, `transcode-`, `tui-`, `tz-`, `upload-`, `version-`, `voxtype-`, `webapp-`, `wifi-`, `windows-`
-
-# Command Metadata
-
-Commands in `bin/` can declare CLI metadata in comments near the top of the file. `bin/omarchy` scans the first 80 lines, and tests expect command metadata to remain valid.
-
-Supported metadata keys:
-
-- `# omarchy:summary=...` - short help text
-- `# omarchy:args=...` - usage arguments
-- `# omarchy:examples=...` - examples separated with ` | `
-- `# omarchy:alias=...` / `# omarchy:aliases=...` - alternate routes
-- `# omarchy:hidden=true` - hide from default command listings
-- `# omarchy:requires-sudo=true` - mark commands that require sudo
-
-Only use `omarchy:examples` where there are args that need explaining.
-
-Prefer explicit metadata for user-facing commands. Keep routes consistent with the filename unless there is a deliberate alias or compatibility route.
-
-Example:
-
-```bash
-# omarchy:summary=Take a screenshot
-# omarchy:args=[smart|region|windows|fullscreen] [slurp|copy]
-# omarchy:examples=omarchy screenshot | omarchy capture screenshot region
-```
+Do not maintain a second exhaustive prefix list here. Consult
+`GROUP_DESCRIPTIONS` when selecting or checking a command group so this
+guidance does not drift from the router.
 
 # Runtime Environment
 
@@ -65,28 +65,14 @@ Example:
 
 # Privileged Commands
 
-- Whenever you need to trigger a sudo command, use `pkexec` so it results in a user prompt they can approve.
+- Follow the "Privilege Escalation" section of `default/agents/skills/omarchy/SKILL.md`. It draws the
+  `sudo`/`pkexec` line by whether the caller has a terminal to enter a password in, and the repo's
+  own scripts follow it.
 
 # Git
 
 - Commits should be atomic: include only one coherent change or fix, and do not mix unrelated work.
 - Commit messages should be succinct and describe the change being made.
-
-# Install Scripts
-
-The ISO owns installation orchestration. This repo ships target-side setup commands and reusable setup leaves:
-
-- `bin/omarchy-setup-system` runs root-owned system setup during ISO finalization.
-- `bin/omarchy-setup-hardware` runs idempotent hardware-specific setup and is called by `omarchy-setup-system`.
-- `bin/omarchy-finalize-user` runs the per-user runtime finalization (skill symlinks, xdg-user-dirs, mime defaults, `install/user/all.sh`). Shipped user defaults are seeded by `/etc/skel` from `omarchy-settings`, not by this command. `bin/omarchy-reinstall-configs` is the explicit destructive resync of those defaults into an existing user's `$HOME`.
-- leaf scripts under `install/` are sourced by `run_logged $OMARCHY_INSTALL/path/to/script.sh` and intentionally do not have shebangs.
-- avoid `exit` in sourced setup scripts unless intentionally aborting setup.
-- use `$OMARCHY_INSTALL` and `$OMARCHY_PATH` instead of hard-coded Omarchy paths.
-- keep root-scoped hardware setup under `install/hardware/` and orchestrate it through `install/hardware/all.sh`.
-- keep every per-user setup leaf under `install/user/` (including `install/user/hardware/` and `install/user/first-run/`) so it is clear what must run for each user.
-- prefer helper commands for package and command checks where available.
-
-Raw `command -v`, `pacman`, and `pacman-key` are acceptable in package-helper contexts where direct package-manager behavior is the point of the script.
 
 # Helper Commands
 
@@ -99,7 +85,16 @@ Use these instead of raw shell commands:
 - `omarchy-notification-send` - send desktop notifications; do not call `notify-send` directly
 - `omarchy-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
 
+Commands installed by Omarchy's default package set are runtime invariants. Invoke them directly; do not add defensive `omarchy-cmd-present` / `omarchy-cmd-missing` checks around them. Use command-presence helpers only for genuinely optional dependencies or code that can run before the default package set is installed.
+
 Exceptions are allowed for migration and package-helper scripts where the helper may not be available yet, where the helper itself is being implemented, or where direct package-manager behavior is required.
+
+# Menu
+
+- The menu definition lives in `default/omarchy/omarchy-menu.jsonc`;
+  [`docs/menu.md`](docs/menu.md) covers the schema, guards, and providers.
+- Do not add `aliases` to new menu entries. Aliases are reserved for
+  established alternate names users already type, kept for compatibility.
 
 # Config Structure
 
@@ -109,85 +104,88 @@ Exceptions are allowed for migration and package-helper scripts where the helper
 
 # Tests
 
-Run focused automated tests for the area you changed. Current test entry points:
+Run focused automated tests for the area you changed;
+[`docs/testing.md`](docs/testing.md) covers how the suites are shaped. Current
+test entry points:
 
-- `./test/all` - aggregate runner for CLI and shell tests
+- `./test/all` - aggregate runner for CLI and shell tests; it intentionally does not run graphical acceptance tests
 - `./test/cli` - CLI routing, command metadata, theme helpers, and safe dispatch coverage
 - `./test/shell` - all Omarchy shell tests under `test/shell.d/`
 
 New Omarchy shell tests should live in `test/shell.d/*-test.sh` so `./test/shell` picks them up automatically. Source `test/shell.d/base-test.sh` for shared root-path discovery, assertions, and Node test helpers.
 
-For visual changes, such as omarchy-shell styling, desktop appearance, screenshots, or screen recording flows, verify with the running UI in addition to automated tests. Take and analyze screenshots with `omarchy capture screenshot fullscreen save`. For animation, transitions, capture, or screen recording behavior, make a short recording with `omarchy screenrecord --fullscreen`, stop it with `omarchy screenrecord --stop-recording`, and review the output before finishing.
+The graphical acceptance suite runs in a disposable VM, not in the active
+development session; see [`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md).
 
-For interactive UI work, use `wtype` to simulate keyboard input when available. Example: start the UI in the background, wait briefly for focus, then run `wtype -k Right -k Return` to exercise keyboard selection and confirm the resulting command output or state change. Prefer this over manual-only verification when a UI returns a selected value or changes a symlink/config.
-
-When testing layer-shell UI, capture the reference and candidate states as separate screenshots, then compare them visually before further edits. If a launched UI would otherwise remain open, keep track of its PID and stop it after the screenshot; avoid broad process kills unless checking with `ps` first.
-
-# Omarchy shell
-
-The Quickshell desktop runs as a single long-running process out of
-`shell/`. Hyprland autostart launches it directly with `quickshell -p`; do
-not start additional standalone `quickshell -p` instances for individual
-components.
-
-Run `omarchy-restart-shell` after making changes to QML files.
-
-Plugin contract:
-
-- Each plugin lives in its own directory under
-  `shell/plugins/<id>/` (first-party) or
-  `~/.config/omarchy/plugins/<id>/` (third-party).
-- Every plugin ships a `manifest.json` declaring `id`, `kinds`,
-  `activation`, and `entryPoints`. The full schema is in
-  [`docs/omarchy-shell.md`](docs/omarchy-shell.md).
-- Entry-point QML files are `Item`s (not `ShellRoot`), and accept the
-  shell-injected properties `omarchyPath`, `shell`, `manifest`, and
-  `pluginRegistry` / `barWidgetRegistry` as appropriate.
-- Panel / overlay / menu plugins must expose `open(payloadJson)` and
-  `close()` lifecycle methods for `shell summon` and `shell hide`.
-
-IPC:
-
-- `bin/omarchy-shell` is the canonical IPC entry point. It forwards to
-  the running shell and does not start it. Prefer it over re-implementing
-  direct Quickshell socket calls in every CLI.
-- The `shell` IPC target exposes `ping`, `summon`, `hide`, `toggle`,
-  `rescanPlugins`, `setPluginEnabled`, and `listPlugins`. Individual
-  plugins can register additional IPC targets (the bar registers `bar`,
-  the background switcher registers `image-selector`).
-
-Widget files in `shell/plugins/bar/widgets/` contain Nerd Font glyphs as raw
-unicode characters. The `Write` and `Edit` tools strip multi-byte
-codepoints in some positions — do **not** rewrite widget files wholesale
-through those tools. For glyph fixes, use the targeted `Edit` tool with
-the surrounding context, or a Python script that inserts codepoints via
-`chr(0xXXXXX)`.
+Visual changes must be verified in the running UI in addition to automated
+tests; follow [`agents/skills/visual-verification.md`](agents/skills/visual-verification.md).
 
 # Refresh Pattern
 
 To copy a default config to user config with automatic backup:
 
 ```bash
-omarchy-refresh-config hypr/hyprlock.conf
+omarchy-refresh-config hypr/hyprland.lua
 ```
 
-This copies `$OMARCHY_PATH/config/hypr/hyprlock.conf` to `~/.config/hypr/hyprlock.conf`.
+This copies `$OMARCHY_PATH/config/hypr/hyprland.lua` to `~/.config/hypr/hyprland.lua`. The argument
+is interpolated into both paths and only checked with `[[ -e ]]`, so pass a plain relative path: a
+name containing `..` resolves and copies, landing outside `~/.config` rather than being rejected.
 
-# Migrations
+# Multi-agent loop
 
-Read `docs/migrations.md` before creating or changing migrations.
+For substantive work on this repo (bindings, install, menus, migrations, security), use a **SWE → QA → Review** loop. The main session is the orchestrator.
 
-Migrations are per-user and run through `omarchy-migrate` during `omarchy update` or from the migration notification. Put migrations directly under `migrations/<timestamp>.sh`. Pending state is per-user under `~/.local/state/omarchy/migrations/`, so every user gets a chance to run every migration. Migrations run as the user; privileged work should invoke the appropriate helper or privilege prompt, and no-op when another user already applied it.
+## Roles
 
-To create a new migration, run `omarchy-dev-add-migration --no-edit`.
+| Role | Responsibility | Edits? |
+|------|----------------|--------|
+| Orchestrator | Scope, handoffs, PR/user communication | Yes if loop stuck |
+| SWE | Implement on `dev` (or a feature branch) | Yes |
+| QA | Run automated suite; report only | No |
+| Reviewer | Diff review vs `origin/main`; bugs block merge | No |
 
-New migration format:
-- File permissions must be `0644` (`-rw-r--r--`); migration runners execute them with `bash -euo pipefail`, not through executable bits
-- No shebang line
-- Start with an `echo` describing what the migration does
-- Use `$OMARCHY_PATH` to reference the omarchy directory
-- Prefer helper commands such as `omarchy-cmd-present`, `omarchy-cmd-missing`, `omarchy-pkg-present`, and `omarchy-pkg-missing`
+## Rules
 
-On this Fedora fork the 3.8.x → quattro (4.0) upgrade runs entirely through `omarchy-update` and the migration runner; there is no separate upgrade command. Upstream's `omarchy-upgrade-to-quattro` was pacman/keyring/limine-only and never applied to Fedora, so it was removed. Put pre-4 transition work in a migration.
+- One writer at a time on a shared branch (or use a git worktree for parallel SWE tasks)
+- QA never "fixes" — only commands, output, and FAIL reasons
+- Reviewer: severity `bug` blocks; `suggestion` / `nit` are optional unless requested
+- Max three SWE↔QA rounds, then surface remaining issues to the user
+- Do not force-push `main`; push `dev` only when asked or policy allows
+- Intentional Mac divergences are not bugs: notch-height bar sizing, `hid_apple fnmode=1` media keys, Shift+brightness for keyboard backlight, wf-recorder capture on the Asahi GPU, Spotify webapp, Codeberg update remote
+- On this Fedora fork the 3.8.x → quattro (4.0) upgrade runs entirely through `omarchy-update` and the migration runner; there is no separate upgrade command. Upstream's `omarchy-upgrade-to-quattro` was pacman/keyring/limine-only and never applied to Fedora, so it was removed. Put pre-4 transition work in a migration.
 
-Migrations may use raw `pacman`, `command -v`, or direct config edits when needed for one-off repair work.
+## Standard QA commands
+
+Run from the repo root before calling work done:
+
+```bash
+./test/all
+bin/omarchy commands --check
+for f in bin/omarchy-*; do
+  if head -1 "$f" | grep -q python; then
+    python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' "$f" || exit 1
+  else
+    bash -n "$f" || exit 1
+  fi
+done
+```
+
+Not every command in `bin/` is a shell script, so the syntax check picks its
+parser from the shebang. `bash -n` on the Python ones reports syntax errors for
+perfectly valid files.
+
+`./test/all` aggregates `./test/cli` and `./test/shell`; run those individually
+when iterating on one area. It deliberately skips the graphical acceptance
+suite, which belongs in a disposable VM (see
+[`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md)).
+
+QA should end with `VERDICT: PASS` or `VERDICT: FAIL`.
+
+## Flow
+
+1. Plan if the approach is ambiguous
+2. SWE implements
+3. QA always runs before "done"
+4. Reviewer runs for non-trivial diffs (roughly >50 LOC, or install/bindings/security)
+5. Bugs → SWE → QA again; then orchestrator reports and updates the PR if needed

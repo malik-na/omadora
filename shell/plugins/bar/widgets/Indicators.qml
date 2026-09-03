@@ -8,7 +8,7 @@ BarWidget {
   id: root
   moduleName: "omarchy.indicators"
 
-  readonly property var defaultIndicatorEntries: [ "Dnd", "Reminder", "NightLight", "StayAwake", "ScreenRecording", "Dictation" ]
+  readonly property var defaultIndicatorEntries: [ "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]
   readonly property var indicatorEntries: indicatorEntriesFromSettings(settings)
   property var activeIndicatorIds: []
   property var indicatorActiveStates: ({})
@@ -142,7 +142,9 @@ BarWidget {
     indicatorActiveStates = states
 
     var ids = orderedActiveIds(states, activeIndicatorIds)
-    if (active && ids.indexOf(id) === -1 && hasIndicatorId(id)) ids.push(id)
+    // The active block sits closest to the clock, so newcomers go on the far
+    // side of it. Appending would shove everything already showing sideways.
+    if (active && ids.indexOf(id) === -1 && hasIndicatorId(id)) ids.unshift(id)
     activeIndicatorIds = ids
     syncActiveIndicatorModel()
   }
@@ -152,16 +154,22 @@ BarWidget {
     syncActiveIndicatorModel()
   }
 
+  function refresh() { root.refreshRequested() }
+
   onIndicatorEntriesChanged: syncActiveIndicatorOrder()
 
-  implicitWidth: root.vertical ? verticalIndicators.implicitWidth : horizontalIndicators.implicitWidth
-  implicitHeight: root.vertical ? verticalIndicators.implicitHeight : horizontalIndicators.implicitHeight
+  implicitWidth: root.vertical
+    ? Math.max(activeVerticalBlock.implicitWidth, inactiveVerticalArea.implicitWidth)
+    : activeHorizontalBlock.implicitWidth + inactiveHorizontalArea.implicitWidth
+  implicitHeight: root.vertical
+    ? activeVerticalBlock.implicitHeight + inactiveVerticalArea.implicitHeight
+    : Math.max(activeHorizontalBlock.implicitHeight, inactiveHorizontalArea.implicitHeight)
 
   IpcHandler {
     target: "omarchy.indicators"
 
     function refresh(): void {
-      root.refreshRequested()
+      root.broadcast("refresh")
     }
   }
 
@@ -174,13 +182,7 @@ BarWidget {
     }
   }
 
-  Timer {
-    interval: 2000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshRequested()
-  }
+  Component.onCompleted: root.refreshRequested()
 
   Row {
     id: horizontalIndicators
@@ -190,13 +192,6 @@ BarWidget {
 
     HoverHandler {
       onHoveredChanged: root.setIndicatorAreaHovered(hovered)
-    }
-
-    ActiveIndicatorBlock {
-      indicatorsModule: root
-      indicatorModel: activeIndicatorModel
-      horizontal: true
-      reportActiveState: !root.vertical
     }
 
     Item {
@@ -210,7 +205,7 @@ BarWidget {
 
       IndicatorBlock {
         id: inactiveHorizontalBlock
-        anchors.fill: parent
+        anchors.verticalCenter: parent.verticalCenter
         indicatorsModule: root
         indicatorEntries: root.indicatorEntries
         indicatorBlock: "inactive"
@@ -221,6 +216,14 @@ BarWidget {
       HoverHandler {
         onHoveredChanged: root.setIndicatorAreaHovered(hovered)
       }
+    }
+
+    ActiveIndicatorBlock {
+      id: activeHorizontalBlock
+      indicatorsModule: root
+      indicatorModel: activeIndicatorModel
+      horizontal: true
+      reportActiveState: !root.vertical
     }
   }
 
@@ -234,13 +237,6 @@ BarWidget {
       onHoveredChanged: root.setIndicatorAreaHovered(hovered)
     }
 
-    ActiveIndicatorBlock {
-      indicatorsModule: root
-      indicatorModel: activeIndicatorModel
-      horizontal: false
-      reportActiveState: root.vertical
-    }
-
     Item {
       id: inactiveVerticalArea
 
@@ -252,7 +248,7 @@ BarWidget {
 
       IndicatorBlock {
         id: inactiveVerticalBlock
-        anchors.fill: parent
+        anchors.horizontalCenter: parent.horizontalCenter
         indicatorsModule: root
         indicatorEntries: root.indicatorEntries
         indicatorBlock: "inactive"
@@ -263,6 +259,14 @@ BarWidget {
       HoverHandler {
         onHoveredChanged: root.setIndicatorAreaHovered(hovered)
       }
+    }
+
+    ActiveIndicatorBlock {
+      id: activeVerticalBlock
+      indicatorsModule: root
+      indicatorModel: activeIndicatorModel
+      horizontal: false
+      reportActiveState: root.vertical
     }
   }
 
@@ -278,15 +282,15 @@ BarWidget {
     property bool horizontal: true
     property bool reportActiveState: false
 
-    implicitWidth: blockLoader.item ? blockLoader.item.childrenRect.width : 0
-    implicitHeight: blockLoader.item ? blockLoader.item.childrenRect.height : 0
+    implicitWidth: blockLoader.item ? blockLoader.item.implicitWidth : 0
+    implicitHeight: blockLoader.item ? blockLoader.item.implicitHeight : 0
     width: implicitWidth
     height: implicitHeight
 
     Loader {
       id: blockLoader
 
-      anchors.fill: parent
+      anchors.centerIn: parent
       sourceComponent: activeIndicatorBlockRoot.horizontal ? horizontalActiveIndicatorBlock : verticalActiveIndicatorBlock
     }
 
@@ -340,15 +344,15 @@ BarWidget {
     property bool horizontal: true
     property bool reportActiveState: false
 
-    implicitWidth: blockLoader.item ? blockLoader.item.childrenRect.width : 0
-    implicitHeight: blockLoader.item ? blockLoader.item.childrenRect.height : 0
+    implicitWidth: blockLoader.item ? blockLoader.item.implicitWidth : 0
+    implicitHeight: blockLoader.item ? blockLoader.item.implicitHeight : 0
     width: implicitWidth
     height: implicitHeight
 
     Loader {
       id: blockLoader
 
-      anchors.fill: parent
+      anchors.centerIn: parent
       sourceComponent: indicatorBlockRoot.horizontal ? horizontalIndicatorBlock : verticalIndicatorBlock
     }
 

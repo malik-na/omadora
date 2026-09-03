@@ -22,7 +22,7 @@ if omarchy-cmd-present voxtype; then
   rm -f ~/.local/state/omarchy/first-party/voxtype
   rm -rf ~/.config/voxtype
   rm -rf ~/.local/share/voxtype
-  omarchy-hyprland-toggle voxtype off
+  hyprctl reload >/dev/null
 else
   echo "Voxtype was not installed."
 fi

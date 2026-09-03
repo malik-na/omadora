@@ -17,10 +17,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
-  pass "no Wayland compositor; skipping shell runtime smoke test"
-  exit 0
-fi
+require_compositor "shell runtime smoke test"
 
 if ! command -v quickshell >/dev/null 2>&1; then
   pass "quickshell not installed; skipping shell runtime smoke test"
@@ -53,6 +50,30 @@ cp -a "$ROOT/shell" "$test_root/shell"
 ln -s "$ROOT/config" "$test_root/config"
 ln -s "$ROOT/bin" "$test_root/bin"
 
+# Every plugin under ~/.config/omarchy/plugins hot-reloads, whoever wrote it.
+hot_reload_id="acme.hot-reload"
+hot_reload_dir="$test_home/.config/omarchy/plugins/$hot_reload_id"
+mkdir -p "$hot_reload_dir"
+cat >"$hot_reload_dir/manifest.json" <<JSON
+{
+  "schemaVersion": 1,
+  "id": "$hot_reload_id",
+  "name": "Before Hot Reload",
+  "version": "1.0.0",
+  "kinds": ["overlay"],
+  "entryPoints": {"overlay": "Overlay.qml"},
+  "omarchy": {"clonedFrom": "omarchy.emojis"}
+}
+JSON
+cat >"$hot_reload_dir/Overlay.qml" <<'QML'
+import QtQuick
+
+Item {
+  function open(payloadJson) {}
+  function close() {}
+}
+QML
+
 cat >"$stub_bin/omarchy-update-available" <<'SH'
 #!/bin/bash
 echo "Omarchy update available (test)"
@@ -60,14 +81,28 @@ exit 0
 SH
 chmod +x "$stub_bin/omarchy-update-available"
 
-cat >"$test_root/shell/plugins/panels/weather/status.sh" <<'SH'
+cat >"$stub_bin/curl" <<'SH'
 #!/bin/bash
-printf '{"text":"72F","class":"sunny"}\n'
+
+case "${*: -1}" in
+  *'?format=j1')
+    printf '{"current_condition":[{"weatherCode":"113","temp_F":"72"}]}\n'
+    ;;
+  *'?format=%l')
+    printf 'Test City, Test Region\n'
+    ;;
+  *)
+    exit 1
+    ;;
+esac
 SH
-chmod +x "$test_root/shell/plugins/panels/weather/status.sh"
+chmod +x "$stub_bin/curl"
 
 OMARCHY_PATH="$test_root" \
 HOME="$test_home" \
+XDG_CONFIG_HOME="$test_home/.config" \
+XDG_CACHE_HOME="$test_home/.cache" \
+XDG_STATE_HOME="$test_home/.local/state" \
 PATH="$stub_bin:$ROOT/bin:$PATH" \
   quickshell -p "$test_root/shell" --no-color >"$log" 2>&1 &
 QS_PID=$!
@@ -97,12 +132,38 @@ done
 jq -e '
   map(.id) as $ids |
   all(["omarchy.menu", "omarchy.notifications", "omarchy.clock", "omarchy.osd"][]; $ids | index(.)) and
-  all(.[]; (.kinds | type == "array") and (.enabled | type == "boolean") and (.firstParty | type == "boolean"))
+  all(.[]; (.kinds | type == "array") and (.enabled | type == "boolean") and (.canDisable | type == "boolean") and (.firstParty | type == "boolean") and (.clonedFrom | type == "string")) and
+  ([.[].name] == ([.[].name] | sort))
 ' <<<"$plugins" >/dev/null || {
   printf 'Plugins:\n%s\n' "$plugins" | jq . >&2
   fail_with_log "shell IPC lists plugin metadata"
 }
 pass "shell IPC lists plugin metadata"
+
+jq '.name = "After Hot Reload"' "$hot_reload_dir/manifest.json" >"$hot_reload_dir/manifest.json.tmp"
+mv "$hot_reload_dir/manifest.json.tmp" "$hot_reload_dir/manifest.json"
+
+hot_reload_name=""
+for _ in {1..80}; do
+  hot_reload_name=$(shell_ipc shell listPlugins 2>/dev/null |
+    jq -r --arg id "$hot_reload_id" '.[] | select(.id == $id) | .name' 2>/dev/null || true)
+  [[ $hot_reload_name == "After Hot Reload" ]] && break
+  if ! kill -0 "$QS_PID" 2>/dev/null; then
+    fail_with_log "test shell exited while reloading a changed installed plugin"
+  fi
+  sleep 0.1
+done
+[[ $hot_reload_name == "After Hot Reload" ]] ||
+  fail_with_log "installed plugin changes reload without an explicit rescan"
+pass "installed plugin changes reload without an explicit rescan"
+
+[[ $(shell_ipc shell setPluginEnabled "$hot_reload_id" true) == "ok" ]] ||
+  fail_with_log "installed plugin could not be enabled"
+[[ $(shell_ipc shell summon omarchy.emojis "{}") == "ok" ]] ||
+  fail_with_log "calls to a cloned source id do not reach its enabled clone"
+shell_ipc_quiet shell hide omarchy.emojis >/dev/null
+shell_ipc_quiet shell setPluginEnabled "$hot_reload_id" false >/dev/null
+pass "shell IPC routes built-in ids to enabled clones"
 
 shell_config=$(shell_ipc shell listShellConfig)
 jq -e '
@@ -116,8 +177,8 @@ jq -e '
 }
 pass "shell IPC returns effective shell config"
 
-[[ $(shell_ipc shell summon omarchy.launcher '{"query":"term"}') == "ok" ]] || fail_with_log "shell IPC summons launcher overlay"
-shell_ipc_quiet shell hide omarchy.launcher >/dev/null
+[[ $(shell_ipc shell summon omarchy.menu '{"menu":"apps"}') == "ok" ]] || fail_with_log "shell IPC summons menu apps overlay"
+shell_ipc_quiet shell hide omarchy.menu >/dev/null
 [[ $(shell_ipc shell summon missing.plugin "{}") == "unknown" ]] || fail_with_log "shell IPC rejects unknown plugin"
 pass "shell IPC summon and hide contract works"
 
@@ -198,13 +259,16 @@ jq -e --argjson expected "$default_ids" --argjson visibleExpected "$visible_defa
 }
 pass "default bar layout renders expected module slots"
 
+# Mac fork: these three sit on the right, not the centre, so assert the ordering
+# in whichever section holds them.
 jq -e '
-  map(select(.section == "center")) | map(.id) as $center |
-  ($center | index("omarchy.weather")) != null and
-  ($center | index("omarchy.system-update")) != null and
-  ($center | index("omarchy.indicators")) != null and
-  (($center | index("omarchy.weather")) < ($center | index("omarchy.system-update"))) and
-  (($center | index("omarchy.system-update")) < ($center | index("omarchy.indicators")))
+  ((map(select(.id == "omarchy.weather")) | first | .section) // "center") as $section |
+  map(select(.section == $section)) | map(.id) as $ids |
+  ($ids | index("omarchy.weather")) as $weather |
+  ($ids | index("omarchy.system-update")) as $update |
+  ($ids | index("omarchy.indicators")) as $indicators |
+  $weather != null and $update != null and $indicators != null and
+  $weather < $update and $update < $indicators
 ' <<<"$geometry" >/dev/null || {
   printf 'Geometry:\n' >&2
   jq . <<<"$geometry" >&2
@@ -219,7 +283,25 @@ for panel_id in omarchy.audio omarchy.bluetooth omarchy.monitor omarchy.network 
 done
 pass "direct panel IPC opens and closes default panels"
 
-HOME="$test_home" OMARCHY_PATH="$test_root" PATH="$ROOT/bin:$PATH" "$ROOT/bin/omarchy-bar-plugin" remove omarchy.audio
+# Each widget registers its IPC handler once per bar, and the bar is
+# instantiated once per screen, so Quickshell reports one collision per screen
+# past the first. Anything beyond that is two instances on the same screen —
+# the shape duplicate component loads produced, where a sync pass that ran
+# while a widget's asynchronous load was still in flight started a second one.
+# Checked before the reload below, which rebuilds widgets by design.
+screens=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || true)
+[[ $screens =~ ^[0-9]+$ ]] && (( screens > 0 )) || screens=1
+# No matches is the good case, and pipefail would otherwise abort the run.
+worst=$(grep -oE "another handler is registered for target [a-z.-]+" "$log" |
+  sort | uniq -c | sort -rn | head -1 | awk '{print $1}' || true)
+worst=${worst:-0}
+if (( worst > screens - 1 )); then
+  grep "another handler is registered for target" "$log" | sed 's/^/  /' | head -20 >&2
+  fail_with_log "each widget registers its IPC handler once per screen (saw $worst for $screens screen(s))"
+fi
+pass "each widget registers its IPC handler once per screen"
+
+HOME="$test_home" OMARCHY_PATH="$test_root" PATH="$ROOT/bin:$PATH" "$ROOT/bin/omarchy-plugin-disable" omarchy.audio
 
 for _ in {1..80}; do
   shell_config=$(shell_ipc shell listShellConfig 2>/dev/null || true)
@@ -236,7 +318,7 @@ done
 
 jq -e 'all(.bar.layout.right[]; (.id // .) != "omarchy.audio")' <<<"$shell_config" >/dev/null || {
   printf 'Shell config after reload:\n%s\n' "$shell_config" | jq . >&2
-  fail_with_log "bar remove reloads shell config"
+  fail_with_log "plugin disable reloads shell config"
 }
 
 jq -e 'all(.[]; .id != "omarchy.audio")' <<<"$geometry" >/dev/null || {
@@ -246,3 +328,50 @@ jq -e 'all(.[]; .id != "omarchy.audio")' <<<"$geometry" >/dev/null || {
 }
 
 pass "bar remove reloads shell config and updates bar layout"
+
+# 'bar put' is what migrations use to place a newly shipped widget, so it has
+# to place one that is missing and leave one that is already there alone,
+# however often it runs.
+bar_put() {
+  HOME="$test_home" OMARCHY_PATH="$test_root" PATH="$ROOT/bin:$PATH" "$ROOT/bin/omarchy-bar" put "$@"
+}
+
+# Mac fork: the clock sits on the right, not the centre, so follow whichever
+# section actually holds it.
+clock_section_ids() {
+  jq -c '[.bar.layout[] | select(type == "array")
+    | select(any(.[]; (.id // .) == "omarchy.clock")) | .[] | .id // .]' \
+    <<<"$(shell_ipc shell listShellConfig)"
+}
+
+bar_put omarchy.keyboard-layout --after omarchy.clock >/dev/null
+for _ in {1..80}; do
+  [[ $(clock_section_ids) == *omarchy.keyboard-layout* ]] && break
+  kill -0 "$QS_PID" 2>/dev/null || fail_with_log "test shell exited while putting a bar widget"
+  sleep 0.1
+done
+
+jq -e '
+  [.bar.layout[] | select(type == "array")
+    | select(any(.[]; (.id // .) == "omarchy.clock")) | .[] | .id // .] as $ids
+  | ($ids | index("omarchy.clock")) as $clock
+  | ($ids | index("omarchy.keyboard-layout")) as $widget
+  | $clock != null and $widget == $clock + 1
+' <<<"$(shell_ipc shell listShellConfig)" >/dev/null ||
+  fail_with_log "bar put places a widget after the one it names ($(clock_section_ids))"
+pass "bar put places a widget after the one it names"
+
+# Upstream aims this at the right section because the widget lives in the
+# centre. Here it already lives on the right, so aim at left instead: the point
+# is that naming any other section moves nothing.
+layout_before=$(jq -c '.bar.layout' <<<"$(shell_ipc shell listShellConfig)")
+bar_put omarchy.keyboard-layout --section left >/dev/null
+sleep 0.5
+layout_after=$(jq -c '.bar.layout' <<<"$(shell_ipc shell listShellConfig)")
+[[ $layout_after == "$layout_before" ]] ||
+  fail_with_log "bar put left a widget already on the bar alone (was $layout_before, now $layout_after)"
+jq -e '[.bar.layout[] | select(type == "array") | .[] | .id // .]
+  | map(select(. == "omarchy.keyboard-layout")) | length == 1' \
+  <<<"$(shell_ipc shell listShellConfig)" >/dev/null ||
+  fail_with_log "bar put added a second copy of a widget already on the bar"
+pass "bar put leaves a widget already on the bar alone"

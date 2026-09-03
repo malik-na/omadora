@@ -40,6 +40,9 @@ hl.config({
     col = {
       border_active = active_border_color,
       border_inactive = inactive_border_color,
+      -- Mac fork: locked groups use theme colors instead of Hyprland's -1 default
+      border_locked_active = active_border_color,
+      border_locked_inactive = inactive_border_color,
     },
 
     groupbar = {
@@ -47,7 +50,7 @@ hl.config({
       font_family = "monospace",
       font_weight_active = "ultraheavy",
       font_weight_inactive = "normal",
-      indicator_height = 0,
+      indicator_height = 1,
       indicator_gap = 5,
       height = 22,
       gaps_in = 5,
@@ -91,7 +94,6 @@ hl.animation({ leaf = "layersOut", enabled = true, speed = 1.5, bezier = "linear
 hl.animation({ leaf = "fadeLayersIn", enabled = true, speed = 1.79, bezier = "almostLinear" })
 hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 1.39, bezier = "almostLinear" })
 hl.animation({ leaf = "workspaces", enabled = false })
-hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 3, bezier = "easeOutQuint", style = "slidevert" })
 
 hl.config({
   dwindle = {
@@ -115,6 +117,9 @@ hl.config({
     anr_missed_pings = 3,
     on_focus_under_fullscreen = 1,
     initial_workspace_tracking = 0,
+    -- Let a fresh shell re-acquire the session lock after the lock client
+    -- died, so omarchy-restart-shell can recover the LOCK failsafe.
+    allow_session_lock_restore = true,
   },
 
   cursor = {

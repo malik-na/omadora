@@ -15,6 +15,16 @@ systemctl unmask wpa_supplicant.service 2>/dev/null || true
 systemctl enable --now wpa_supplicant.service 2>/dev/null ||
   echo "[WARNING] Could not start wpa_supplicant - Wi-Fi may be unavailable"
 
+# Asahi Alarm points NetworkManager at iwd in /etc/NetworkManager/conf.d, so
+# disabling iwd alone leaves NetworkManager with a backend that never starts
+# and no Wi-Fi devices at all. Hand the radio back to wpa_supplicant, which is
+# also what install/hardware/apple/fix-brcmfmac-supplicant.sh assumes.
+for network_manager_conf in /etc/NetworkManager/conf.d/*.conf; do
+  [[ -f $network_manager_conf ]] || continue
+  grep -qE '^[[:space:]]*wifi\.backend[[:space:]]*=[[:space:]]*iwd' "$network_manager_conf" || continue
+  sed -i 's/^\([[:space:]]*wifi\.backend[[:space:]]*=[[:space:]]*\)iwd/\1wpa_supplicant/' "$network_manager_conf"
+done
+
 # Fresh Omarchy uses NetworkManager. Archinstall's legacy "copy ISO network"
 # mode enabled systemd-networkd and dropped DHCP .network files that compete
 # with NetworkManager, so retire that state whenever hardware setup runs.
@@ -54,4 +64,14 @@ done
 
 if systemctl is-active --quiet NetworkManager.service 2>/dev/null; then
   systemctl stop systemd-networkd.service 2>/dev/null || true
+fi
+
+# Prefer systemd-resolved's stub when it is already available. During a live
+# install enable-services.sh only enables daemons; it deliberately does not
+# start them before reboot. Do not replace a working resolver with a dangling
+# stub link in that window, or later hardware setup loses network access.
+if [[ -e /run/systemd/resolve/stub-resolv.conf ]]; then
+  ln -sfn ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+elif [[ -e /run/NetworkManager/resolv.conf ]]; then
+  ln -sfn ../run/NetworkManager/resolv.conf /etc/resolv.conf
 fi

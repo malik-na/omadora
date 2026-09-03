@@ -94,11 +94,12 @@ ShellRoot {
     if (typeof item.setting === "function") {
       root.assertEqual(item.setting("missing", "fallback"), "fallback", entry.id + " exposes setting fallback")
     }
-    if (entry.id === "omarchy.model-usage" && typeof item.iconSourceForProvider === "function") {
-      var darkIcon = String(item.iconSourceForProvider({ providerId: "codex" }, Qt.color("#1a1b26")))
-      var lightIcon = String(item.iconSourceForProvider({ providerId: "codex" }, Qt.color("#ffffff")))
-      root.assertTrue(darkIcon.indexOf("codex.svg") >= 0 && darkIcon.indexOf("codex-light.svg") < 0, entry.id + " uses the dark-theme Codex icon on dark surfaces")
-      root.assertTrue(lightIcon.indexOf("codex-light.svg") >= 0, entry.id + " uses the light-theme Codex icon on light surfaces")
+    if (entry.id === "omarchy.agents") {
+      root.assertTrue(typeof item.iconCandidatesForProvider === "function", entry.id + " resolves provider marks by convention")
+      var darkIcons = item.iconCandidatesForProvider({ providerId: "codex" }, Qt.color("#1a1b26")).join(" ")
+      var lightIcons = item.iconCandidatesForProvider({ providerId: "codex" }, Qt.color("#ffffff")).join(" ")
+      root.assertTrue(darkIcons.indexOf("codex.svg") >= 0 && darkIcons.indexOf("codex-light.svg") < 0, entry.id + " uses the dark-theme Codex icon on dark surfaces")
+      root.assertTrue(lightIcons.indexOf("codex-light.svg") >= 0, entry.id + " prefers the light-theme Codex icon on light surfaces")
     }
 
     safeCall(item, "refresh", entry)
@@ -111,23 +112,12 @@ ShellRoot {
   Item { id: host }
 
   QtObject {
-    id: mockNotificationService
-    property bool doNotDisturb: false
-    property ListModel pendingModel: ListModel {}
-    property ListModel pastModel: ListModel {}
-    function setDoNotDisturb(value) { doNotDisturb = !!value }
-  }
-
-  QtObject {
     id: mockShell
     property var bar: fakeBar
     property var barConfig: ({ position: "top" })
     property var shellConfig: ({ version: 1, idle: {}, plugins: [], bar: { layout: { left: [], center: [], right: [] } } })
-    function firstPartyServiceFor(id) {
-      if (id === "omarchy.notifications") return mockNotificationService
-      return null
-    }
-    function serviceFor(id) { return firstPartyServiceFor(id) }
+    function firstPartyServiceFor(id) { return null }
+    function serviceFor(id) { return null }
     function summon(id, payloadJson) { return true }
     function hide(id) { return true }
     function toggle(id, payloadJson) { return true }

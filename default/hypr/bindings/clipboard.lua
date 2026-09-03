@@ -1,30 +1,35 @@
--- Work around Hyprland send_shortcut sometimes leaving synthetic key state stuck/repeating.
+-- Send with explicit mods to the focused surface by omitting the window target,
+-- so universal clipboard shortcuts reach both normal windows and focused
+-- layer-shell surfaces such as Omarchy panels. A virtual keyboard (wtype) won't
+-- do: the physically held SUPER merges into the injected chord at the seat.
+-- The down/up split works around Hyprland send_shortcut sometimes leaving
+-- synthetic key state stuck/repeating.
 -- https://github.com/hyprwm/Hyprland/discussions/14099
 local function send_shortcut_once(mods, key)
   return function()
-    hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "down", window = "activewindow" }))
+    hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "down" }))
 
     hl.timer(function()
-      hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "up", window = "activewindow" }))
+      hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "up" }))
     end, { timeout = 50, type = "oneshot" })
   end
 end
 
-local terminal_classes = {
-  alacritty = true,
-  ["com.mitchellh.ghostty"] = true,
-  foot = true,
-  kitty = true,
-  wezterm = true,
-}
-
+-- Lean on the terminal tag from default/hypr/apps/terminals.lua so there's one
+-- definition of what counts as a terminal. Dynamic tags carry a trailing "*".
 local function active_window_is_terminal()
   local window = hl.get_active_window()
-  if not window or not window.class then
+  if not window then
     return false
   end
 
-  return terminal_classes[window.class:lower()] == true
+  for _, tag in ipairs(window.tags or {}) do
+    if tag:gsub("%*$", "") == "terminal" then
+      return true
+    end
+  end
+
+  return false
 end
 
 local function universal_clipboard_shortcut(default_mods, default_key, terminal_mods, terminal_key)

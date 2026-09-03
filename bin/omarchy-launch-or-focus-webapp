@@ -10,7 +10,10 @@ fi
 
 WINDOW_PATTERN="$1"
 shift
-printf -v escaped_args '%q ' "$@"
-LAUNCH_COMMAND="omarchy-launch-webapp ${escaped_args% }"
+LAUNCH_COMMAND="omarchy-launch-webapp"
+for arg in "$@"; do
+  printf -v quoted ' %q' "$arg"
+  LAUNCH_COMMAND+="$quoted"
+done
 
 exec omarchy-launch-or-focus "$WINDOW_PATTERN" "$LAUNCH_COMMAND"

@@ -10,19 +10,6 @@ function normalizeAliases(value) {
   return []
 }
 
-function normalizeKeywords(id, aliases, raw) {
-  var parts = String(raw || "").split(/\s+/)
-  var seen = {}
-  var out = []
-  for (var i = 0; i < parts.length; i++) {
-    var p = parts[i]
-    if (!p || seen[p]) continue
-    seen[p] = true
-    out.push(p)
-  }
-  return out.join(" ")
-}
-
 function normalizeItem(id, raw) {
   var value = raw || {}
   var aliases = normalizeAliases(value.aliases)
@@ -40,14 +27,15 @@ function normalizeItem(id, raw) {
     icon: value.icon || "",
     iconFont: value.iconFont || "",
     label: value.label || id,
+    title: value.title || "",
     target: value.target || "",
-    keywords: normalizeKeywords(id, aliases, value.keywords),
     description: value.description || "",
     action: value.action || "",
     provider: value.provider || "",
     aliases: aliases,
     when: value.when || "",
-    checked: value.checked || ""
+    checked: value.checked || "",
+    disabled: value.disabled || ""
   }
 }
 
@@ -96,7 +84,7 @@ function mergeMenuSources(defaultItems, userItems) {
   }
 
   if (!nextItems.root) {
-    nextItems.root = { id: "root", parent: "", kind: "menu", icon: "", iconFont: "", label: "Go", target: "", keywords: "", description: "", aliases: [], when: "", checked: "", action: "", provider: "" }
+    nextItems.root = { id: "root", parent: "", kind: "menu", icon: "", iconFont: "", label: "Go", title: "", target: "", description: "", aliases: [], when: "", checked: "", disabled: "", action: "", provider: "" }
     nextOrder.unshift("root")
   }
   for (var k3 = 0; k3 < nextOrder.length; k3++) nextItems[nextOrder[k3]].order = k3
@@ -107,8 +95,99 @@ function mergeMenuSources(defaultItems, userItems) {
   }
 }
 
+// Both merges below return fresh items/itemOrder objects for the caller to
+// assign in one go. They must never write into the maps they are handed: those
+// live in QML `var` properties, and an in-place write into such an object is
+// occasionally dropped by the engine — the key lands with an undefined value.
+// A lost write used to leave an id in itemOrder with no item behind it, and
+// the next merge then kept that orphan and appended a second row for the same
+// app, so the launcher listed it twice (and again on every later rescan).
+
+// Swaps every app row for the current set. Rows keep the order they arrive in;
+// ids already claimed (including duplicate desktop ids) are listed once.
+function mergeAppRows(items, itemOrder, appRows) {
+  var source = items || ({})
+  var order = Array.isArray(itemOrder) ? itemOrder : []
+  var rows = Array.isArray(appRows) ? appRows : []
+  var nextItems = ({})
+  var nextOrder = []
+
+  for (var i = 0; i < order.length; i++) {
+    var id = order[i]
+    var existing = source[id]
+    // Orphans (an id with no item) are dropped rather than carried forward,
+    // so a single lost write cannot compound into a duplicate row.
+    if (!existing || existing.kind === "app") continue
+    nextItems[id] = existing
+    nextOrder.push(id)
+  }
+
+  for (var j = 0; j < rows.length; j++) {
+    var row = rows[j]
+    if (!row || !row.id || nextItems[row.id]) continue
+    row.order = nextOrder.length
+    nextItems[row.id] = row
+    nextOrder.push(row.id)
+  }
+
+  return { items: nextItems, itemOrder: nextOrder }
+}
+
+// Swaps the rows one provider contributed, leaving every other item untouched.
+// Rows carry the id of the submenu that produced them, so a provider that runs
+// again drops its previous batch — a plugin that was just enabled disappears
+// from the Enable list — without disturbing static children declared in JSONC.
+function swapProviderRows(items, itemOrder, menuId, rows) {
+  var source = items || ({})
+  var order = Array.isArray(itemOrder) ? itemOrder : []
+  var incoming = Array.isArray(rows) ? rows : []
+  var nextItems = ({})
+  var nextOrder = []
+
+  for (var i = 0; i < order.length; i++) {
+    var id = order[i]
+    var existing = source[id]
+    if (!existing || existing.providerMenu === menuId) continue
+    nextItems[id] = existing
+    nextOrder.push(id)
+  }
+
+  for (var j = 0; j < incoming.length; j++) {
+    var row = incoming[j]
+    if (!row || !row.id || nextItems[row.id]) continue
+    row.providerMenu = menuId
+    row.order = nextOrder.length
+    nextItems[row.id] = row
+    nextOrder.push(row.id)
+  }
+
+  return { items: nextItems, itemOrder: nextOrder }
+}
+
 function item(items, id) {
   return items && items[id] ? items[id] : null
+}
+
+// Routes may name a real id (`system`, `setup.power`) or an alias declared in
+// JSONC (`power-menu`, `settings`). An exact id beats any alias, and app rows
+// are never routable: their aliases carry .desktop Keywords and GenericName
+// for search, so an installed application could otherwise shadow a menu route
+// (htop ships `Keywords=system;...`). Unknown strings fall through as the
+// literal input so misspellings still attempt to open that id.
+function resolveRoute(items, itemOrder, input) {
+  var raw = String(input || "").toLowerCase().replace(/_/g, "-")
+  if (!raw || raw === "go" || raw === "menu") return "root"
+  if (item(items, raw)) return raw
+  var order = Array.isArray(itemOrder) ? itemOrder : []
+  for (var i = 0; i < order.length; i++) {
+    var entry = item(items, order[i])
+    if (!entry || entry.kind === "app" || !entry.aliases) continue
+    for (var j = 0; j < entry.aliases.length; j++) {
+      var alias = String(entry.aliases[j] || "").toLowerCase().replace(/_/g, "-")
+      if (alias === raw) return entry.id
+    }
+  }
+  return raw
 }
 
 function slugify(value) {
@@ -173,10 +252,39 @@ function childCount(items, itemOrder, id) {
   return count
 }
 
-function labelFor(entry, checkedResults) {
+function isVisible(items, itemOrder, whenResults, entry, depth) {
+  if (!entry) return false
+  if (entry.when && whenResults && whenResults[entry.id] === false) return false
+  if (entry.kind !== "menu" && entry.kind !== "link") return true
+  if (entry.provider) return true
+
+  var guard = depth || 0
+  if (guard >= 32) return false
+
+  var target = entry.kind === "link" ? entry.target : entry.id
+  var order = Array.isArray(itemOrder) ? itemOrder : []
+  for (var i = 0; i < order.length; i++) {
+    var child = item(items, order[i])
+    if (child && child.parent === target && isVisible(items, itemOrder, whenResults, child, guard + 1)) return true
+  }
+
+  return false
+}
+
+// A `disabled:` row stays listed but goes dim and unselectable. The
+// Install submenus use it so software already on the machine reads as
+// installed rather than disappearing from the list it was installed from.
+function isDisabled(disabledResults, entry) {
+  if (!entry || !entry.disabled) return false
+  return !!(disabledResults && disabledResults[entry.id])
+}
+
+// A disabled row is software you already have, which is the same thing the ✓
+// says everywhere else in the menu, so it earns the same marker.
+function labelFor(entry, checkedResults, disabledResults) {
   if (!entry) return ""
-  if (entry.checked && checkedResults && checkedResults[entry.id]) return entry.label + " ✓"
-  return entry.label
+  var marked = (entry.checked && checkedResults && checkedResults[entry.id]) || isDisabled(disabledResults, entry)
+  return marked ? entry.label + " ✓" : entry.label
 }
 
 function searchableToken(value) {
@@ -204,7 +312,7 @@ function termInSearchWords(term, text) {
   return false
 }
 
-function keywordTextMatches(query, text) {
+function descriptionTextMatches(query, text) {
   var terms = String(query || "").toLowerCase().trim().split(/\s+/)
   for (var i = 0; i < terms.length; i++) {
     if (terms[i] && !termInSearchWords(terms[i], text)) return false
@@ -217,13 +325,13 @@ function matchesQuery(entry, query, visible) {
   if (!visible) return false
 
   var nameText = nameSearchText(entry)
-  var keywordText = (entry.keywords + " " + entry.description).toLowerCase()
+  var descriptionText = String(entry.description || "").toLowerCase()
   var terms = String(query || "").toLowerCase().trim().split(/\s+/)
 
   for (var i = 0; i < terms.length; i++) {
     if (!terms[i]) continue
     if (nameText.indexOf(terms[i]) >= 0) continue
-    if (termInSearchWords(terms[i], keywordText)) continue
+    if (termInSearchWords(terms[i], descriptionText)) continue
     return false
   }
 
@@ -234,28 +342,37 @@ function searchScore(items, entry, query) {
   var needle = String(query || "").toLowerCase().trim()
   var label = entry.label.toLowerCase()
   var nameText = nameSearchText(entry)
-  var keywordText = (entry.keywords + " " + entry.description).toLowerCase()
+  var descriptionText = String(entry.description || "").toLowerCase()
   var score = 80
 
   if (label === needle) score = entry.parent === "root" ? 2 : 0
+  // An installed app whose name contains the query as a whole word ("zen"
+  // for Zen Browser) beats exact-labeled menu entries like Install > Zen.
+  else if (entry.kind === "app" && label.split(/\s+/).indexOf(needle) >= 0) score = 0
   else if (label.indexOf(needle) === 0) score = 10
   else if (label.indexOf(needle) >= 0) score = 30
   else if (nameText.indexOf(needle) >= 0) score = 40
-  else if (keywordTextMatches(needle, keywordText)) score = 60
+  else if (descriptionTextMatches(needle, descriptionText)) score = 60
 
   if (entry.kind === "menu" || entry.kind === "link") score -= 2
+  // App rows sort after all menu items, so they lose the tiebreak below to an
+  // equal match. Outrank those, but stay inside the tier so better ones win.
+  if (entry.kind === "app") score -= 5
 
   return score * 1000 + depthFor(items, entry.id) * 25 + entry.order
 }
 
-function displayRow(items, itemOrder, checkedResults, entry, detail, score, section) {
+function displayRow(items, itemOrder, checkedResults, disabledResults, entry, detail, score, section) {
   var target = entry.kind === "link" ? entry.target : entry.id
   return {
     itemId: entry.id,
+    disabled: isDisabled(disabledResults, entry),
     kind: entry.kind,
     icon: entry.icon,
     iconFont: entry.iconFont || "",
-    label: labelFor(entry, checkedResults),
+    appIcon: entry.appIcon || "",
+    appId: entry.appId || "",
+    label: labelFor(entry, checkedResults, disabledResults),
     target: target,
     detail: detail || "",
     path: pathFor(items, entry.id),
@@ -267,27 +384,139 @@ function displayRow(items, itemOrder, checkedResults, entry, detail, score, sect
   }
 }
 
+// Commands a `checked:` expression reads a value out of. Every sibling row
+// asks the same one -- Defaults > Browser has seven rows all comparing
+// against `omarchy-default-browser` -- so the batch runs it once and the rows
+// read the captured answer.
+//
+// The capture has to be eager. These are read inside `$(...)`, and a value
+// cached while one expression runs lives in that subshell only, so a lazy
+// memo never survives to the expression after it.
+var GUARD_READERS = [
+  "omarchy-channel-current",
+  "omarchy-default-agent",
+  "omarchy-default-browser",
+  "omarchy-default-editor",
+  "omarchy-default-terminal",
+  "omarchy-dns"
+]
+
+// Package and command presence account for most of what the guards ask, and
+// asked one at a time they are almost all fork: the shipped menu spends over
+// a second on them. Answer them inside the guard process instead. These
+// shadow the real commands for the batch only, so they have to agree with
+// them everywhere, including for no arguments at all (present is true of
+// nothing, missing is not).
+//
+// `pacman -Q` resolves a name through what installed packages provide, not
+// just what they are called -- with gvim installed it reports `vim` as
+// present -- so the set has to carry provides too, or `install.editor.vim`
+// comes back and offers to install what is already there. A version
+// constraint (`bash>=1`) is not a name any set can answer, so it goes to
+// pacman itself; no shipped guard writes one.
+//
+// `pacman -Qi` wraps a long list across continuation lines whenever COLUMNS
+// is set in the environment, which a login shell may well have done, so the
+// parser follows the indented lines rather than reading the first one and
+// dropping half of what is installed.
+function guardHelpers() {
+  return 'declare -A __omarchy_pkgs=()\n'
+    + 'mapfile -t __omarchy_pkg_names < <({ pacman -Qq; LC_ALL=C pacman -Qi'
+    + " | awk '/^[A-Za-z]/ { provides = ($0 ~ /^Provides/); sub(/^[^:]*: /, \"\") }"
+    + ' provides && $0 != "None" { n = split($0, p, " ");'
+    + ' for (i = 1; i <= n; i++) { sub(/[<>=].*/, "", p[i]); print p[i] } }\'; } 2>/dev/null)\n'
+    + 'for __omarchy_pkg in "${__omarchy_pkg_names[@]}"; do __omarchy_pkgs[$__omarchy_pkg]=1; done\n'
+    + '__omarchy_pkg_has() { [[ -n ${__omarchy_pkgs[$1]-} ]] && return 0; '
+    + '[[ $1 == *[\\<\\>=]* ]] && { pacman -Q "$1" &>/dev/null; return; }; return 1; }\n'
+    + 'omarchy-pkg-present() { local p; for p in "$@"; do __omarchy_pkg_has "$p" || return 1; done; return 0; }\n'
+    + 'omarchy-pkg-missing() { local p; for p in "$@"; do __omarchy_pkg_has "$p" || return 0; done; return 1; }\n'
+    + 'omarchy-cmd-present() { local c; for c in "$@"; do command -v "$c" &>/dev/null || return 1; done; return 0; }\n'
+    + 'omarchy-cmd-missing() { local c; for c in "$@"; do command -v "$c" &>/dev/null || return 0; done; return 1; }\n'
+}
+
+// Substitute the captured answer into the expression rather than shadowing
+// the reader with a function. `$(reader)` and the variable holding what it
+// printed are interchangeable -- both strip trailing newlines, both split the
+// same way unquoted -- while a function would also catch `command -v reader`,
+// `VAR=x reader`, and every other form, and answer those wrong. Anything but
+// the plain substitution is left alone to run the real command.
+function guardPrelude(guards) {
+  var prelude = guardHelpers()
+
+  for (var i = 0; i < GUARD_READERS.length; i++) {
+    // The guards arrive already substituted, so what marks a reader as wanted
+    // is the slot standing in for it, not the call it replaced.
+    if (guards.indexOf(guardReaderSlot(i)) < 0) continue
+    // `|| :` so a reader that exits nonzero cannot take the batch down with
+    // it under a login shell that turned on errexit.
+    prelude += "__omarchy_read_" + i + "=$(" + GUARD_READERS[i] + " 2>/dev/null) || :\n"
+  }
+
+  return prelude
+}
+
+function guardReaderSlot(index) {
+  return "${__omarchy_read_" + index + "}"
+}
+
+function substituteGuardReaders(expression) {
+  for (var i = 0; i < GUARD_READERS.length; i++)
+    expression = expression.split("$(" + GUARD_READERS[i] + ")").join(guardReaderSlot(i))
+
+  return expression
+}
+
+function guardLine(id, tag, expression) {
+  return "if { " + substituteGuardReaders(expression) + "; } >/dev/null 2>&1; then echo "
+    + id + ":" + tag + ":1; else echo " + id + ":" + tag + ":0; fi\n"
+}
+
+// One bash script for every `when:`, `checked:` and `disabled:` in the menu,
+// reporting `<id>:<w|c|d>:<0|1>` per line. Speed is the whole point: the menu
+// opens on the last evaluation's answers, so however long this takes is how
+// long a row can contradict the state it describes.
+function guardScript(items) {
+  var guards = ""
+  var ids = Object.keys(items || {})
+
+  for (var i = 0; i < ids.length; i++) {
+    var entry = items[ids[i]]
+    if (!entry) continue
+    if (entry.when) guards += guardLine(ids[i], "w", entry.when)
+    if (entry.checked) guards += guardLine(ids[i], "c", entry.checked)
+    if (entry.disabled) guards += guardLine(ids[i], "d", entry.disabled)
+  }
+
+  return guards ? guardPrelude(guards) + guards : ""
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
+    guardReaders: GUARD_READERS,
+    guardScript: guardScript,
     stripJsonc: stripJsonc,
     normalizeAliases: normalizeAliases,
-    normalizeKeywords: normalizeKeywords,
     normalizeItem: normalizeItem,
     parseMenuJsonc: parseMenuJsonc,
     mergeMenuSources: mergeMenuSources,
+    mergeAppRows: mergeAppRows,
+    swapProviderRows: swapProviderRows,
     item: item,
+    resolveRoute: resolveRoute,
     slugify: slugify,
     depthFor: depthFor,
     pathFor: pathFor,
     parentPathFor: parentPathFor,
     isDescendantOf: isDescendantOf,
     childCount: childCount,
+    isVisible: isVisible,
+    isDisabled: isDisabled,
     labelFor: labelFor,
     searchableToken: searchableToken,
     leafIdFor: leafIdFor,
     nameSearchText: nameSearchText,
     termInSearchWords: termInSearchWords,
-    keywordTextMatches: keywordTextMatches,
+    descriptionTextMatches: descriptionTextMatches,
     matchesQuery: matchesQuery,
     searchScore: searchScore,
     displayRow: displayRow

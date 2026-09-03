@@ -8,6 +8,7 @@ ci-test/
 # Build artifacts
 dist/
 build/
+build-output/
 # OS files
 .DS_Store
 Thumbs.db
@@ -31,12 +32,11 @@ compile_commands.json
 .vscode/
 .idea/
 .cache/
-# Python
+# Python bytecode (orchestrator)
 __pycache__/
 *.pyc
 # Project roadmap (local only)
 Roadmap.md
-# Python bytecode (orchestrator)
 
 # Local e2e docker harness output
 .e2e-logs/

@@ -3,3 +3,40 @@ run_logged "$OMARCHY_INSTALL/hardware/input-group.sh"
 run_logged "$OMARCHY_INSTALL/hardware/set-wireless-regdom.sh"
 run_logged "$OMARCHY_INSTALL/hardware/bluetooth.sh"
 run_logged "$OMARCHY_INSTALL/hardware/vulkan.sh"
+
+# x86 leaves are DMI-gated inside each script; only call scripts that exist on disk.
+run_logged "$OMARCHY_INSTALL/hardware/intel/lpmd.sh"
+run_logged "$OMARCHY_INSTALL/hardware/intel/thermald.sh"
+# Swap in the Panther Lake kernel before anything pulls DKMS modules in.
+# intel-ipu7-camera drags in ipu7-drivers, vision-drivers and v4l2loopback,
+# and building all three against the stock kernel only to rebuild them against
+# linux-ptl and tear the first set down again cost ~25s of the install.
+run_logged "$OMARCHY_INSTALL/hardware/intel/ptl-kernel.sh"
+run_logged "$OMARCHY_INSTALL/hardware/intel/ipu7-camera.sh"
+run_logged "$OMARCHY_INSTALL/hardware/intel/fred.sh"
+run_logged "$OMARCHY_INSTALL/hardware/intel/fix-wifi7-eht.sh"
+run_logged "$OMARCHY_INSTALL/hardware/intel/sof-firmware.sh"
+
+# Rebuilds the boot image, so it has to follow the Panther Lake kernel swap
+# above rather than sit with the other Dell leaf at the top of this file.
+run_logged "$OMARCHY_INSTALL/hardware/dell-xps13-sidecar-amps.sh"
+
+run_logged "$OMARCHY_INSTALL/hardware/asus/fix-asus-ptl-display-backlight.sh"
+run_logged "$OMARCHY_INSTALL/hardware/asus/fix-asus-ptl-b9406-display.sh"
+run_logged "$OMARCHY_INSTALL/hardware/asus/fix-asus-ptl-b9406-touchpad.sh"
+run_logged "$OMARCHY_INSTALL/hardware/asus/fix-z13-touchpad.sh"
+
+run_logged "$OMARCHY_INSTALL/hardware/framework/qmk-hid.sh"
+
+# Apple Silicon (aarch64) leaves — skip Arch-only T2 / missing scripts.
+run_logged "$OMARCHY_INSTALL/hardware/apple/fix-spi-keyboard.sh"
+run_logged "$OMARCHY_INSTALL/hardware/apple/fix-brcmfmac-supplicant.sh"
+run_logged "$OMARCHY_INSTALL/hardware/apple/fix-asahi-hid-race.sh"
+run_logged "$OMARCHY_INSTALL/hardware/apple/enable-notch.sh"
+run_logged "$OMARCHY_INSTALL/hardware/apple/audio.sh"
+
+run_logged "$OMARCHY_INSTALL/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh"
+
+run_logged "$OMARCHY_INSTALL/hardware/fix-yt6801-ethernet-adapter.sh"
+run_logged "$OMARCHY_INSTALL/hardware/fix-tuxedo-backlight.sh"
+run_logged "$OMARCHY_INSTALL/hardware/speaker-tuning.sh"

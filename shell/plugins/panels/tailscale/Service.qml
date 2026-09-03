@@ -12,12 +12,20 @@ Item {
   property bool installed: false
   property bool running: false
   property bool needsLogin: false
+
+  // Optimistic off state so the UI reacts the instant you click, rather than
+  // waiting for the next status refresh. _desired is -1 while we just follow
+  // the real state, or 0/1 while a toggle is still catching up.
+  property int _desired: -1
+  readonly property bool active: _desired === -1 ? running : (_desired === 1)
   property bool refreshing: false
   property string backendState: "Unknown"
   property string statusText: "Checking…"
   property string selfName: ""
   property string selfDnsName: ""
   property string selfIp: ""
+  property string selfUserId: ""
+  property bool fileSharing: false
   property string authUrl: ""
   property var peers: []
   property var exitNodes: []
@@ -117,6 +125,26 @@ Item {
     copyToClipboard(cleanDnsName(peer.DNSName), displayHostName(peer.HostName, peer.DNSName) + " DNS name")
   }
 
+  function peerAddress(peer) {
+    if (!peer) return ""
+    if (peer.DNSName) return cleanDnsName(peer.DNSName)
+    if (peer.HostName) return String(peer.HostName)
+    var ips = filterIPv4(peer.TailscaleIPs || [])
+    return ips.length > 0 ? ips[0] : ""
+  }
+
+  function canSendFiles(peer) {
+    if (!fileSharing || !running || !peer) return false
+    return Model.isTaildropTarget(peer, selfUserId)
+  }
+
+  function sendFile(peer) {
+    if (!canSendFiles(peer)) return
+    var target = peerAddress(peer)
+    if (target === "") return
+    Quickshell.execDetached(["omarchy-tailscale-send", target])
+  }
+
   function refresh(forceAccounts) {
     if (installed) {
       refreshStatusAndAccounts(forceAccounts === true)
@@ -131,18 +159,21 @@ Item {
 
   function refreshStatusAndAccounts(forceAccounts) {
     if (!installed) return
+    var launched = false
     if (!statusProcess.running) {
       _statusOutput = ""
       _statusError = ""
       refreshing = true
       statusProcess.command = ["tailscale", "status", "--json"]
       statusProcess.running = true
+      launched = true
     }
     if (!mullvadExitNodesProcess.running) {
       _mullvadExitNodesOutput = ""
       _mullvadExitNodesError = ""
       mullvadExitNodesProcess.command = ["tailscale", "exit-node", "list"]
       mullvadExitNodesProcess.running = true
+      launched = true
     }
     var now = Date.now()
     var shouldRefreshAccounts = forceAccounts === true || accounts.length === 0 || now - _lastAccountsRefreshMs > 60000
@@ -152,7 +183,13 @@ Item {
       _lastAccountsRefreshMs = now
       accountsProcess.command = ["tailscale", "switch", "--list", "--json"]
       accountsProcess.running = true
+      launched = true
     }
+    // Arm on the launch that needs watching and leave it alone after that.
+    // Restarting it every refresh pushes the deadline out ahead of a hung
+    // process forever once the refresh interval is shorter than the timeout,
+    // and refreshIntervalSec goes down to five seconds.
+    if (launched && !pollWatchdog.running) pollWatchdog.start()
   }
 
   function elideStatus(text) {
@@ -163,11 +200,14 @@ Item {
   function resetUnavailable(message) {
     running = false
     needsLogin = false
+    _desired = -1
     backendState = "Unavailable"
     statusText = message
     selfName = ""
     selfDnsName = ""
     selfIp = ""
+    selfUserId = ""
+    fileSharing = false
     authUrl = ""
     peers = []
     exitNodes = []
@@ -197,12 +237,16 @@ Item {
 
     backendState = parsed.backendState
     running = parsed.running
+    // Reality caught up to the pending toggle — stop overriding.
+    if (_desired !== -1 && running === (_desired === 1)) _desired = -1
     needsLogin = parsed.needsLogin
     authUrl = parsed.authUrl
     if (needsLogin && _loginInProgress && !_loginUrlOpened && authUrl !== "" && authUrl !== _preLoginAuthUrl) openAuthUrlFrom(authUrl, false)
     selfName = parsed.selfName
     selfDnsName = parsed.selfDnsName
     selfIp = parsed.selfIp
+    selfUserId = parsed.selfUserId
+    fileSharing = parsed.fileSharing
     peers = parsed.running ? parsed.peers : []
     tailnetExitNodes = parsed.running ? parsed.exitNodes : []
     exitNodes = parsed.running ? tailnetExitNodes.concat(mullvadRegions) : []
@@ -238,12 +282,20 @@ Item {
 
   function toggleTailscale() {
     if (!installed) return
-    if (running) runAction(["tailscale", "down"], "Turning Tailscale off…")
+    if (active) down()
     else loginOrUp()
+  }
+
+  function down() {
+    // No progress status here — the greyed icon and hero line already convey
+    // the optimistic off; only surface a message if the command fails.
+    _desired = 0
+    runAction(["tailscale", "down"])
   }
 
   function loginOrUp() {
     if (!installed || loginProcess.running) return
+    _desired = -1
     var plan = Model.loginPlan(needsLogin, authUrl)
     if (plan.authUrl !== "") {
       _loginUrlOpened = false
@@ -252,7 +304,8 @@ Item {
     }
     _loginOutput = ""
     _loginError = ""
-    actionStatus = needsLogin ? "Starting Tailscale login…" : "Turning Tailscale on…"
+    if (needsLogin) actionStatus = "Starting Tailscale login…"
+    else _desired = 1
     _loginInProgress = needsLogin
     _loginUrlOpened = false
     _preLoginAuthUrl = authUrl
@@ -277,10 +330,7 @@ Item {
       var mullvadIps = filterIPv4(peer.TailscaleIPs || [])
       if (mullvadIps.length > 0) return mullvadIps[0]
     }
-    if (peer.DNSName) return cleanDnsName(peer.DNSName)
-    if (peer.HostName) return String(peer.HostName)
-    var ips = filterIPv4(peer.TailscaleIPs || [])
-    return ips.length > 0 ? ips[0] : ""
+    return peerAddress(peer)
   }
 
   function setExitNode(peer) {
@@ -308,7 +358,7 @@ Item {
     if (actionProcess.running) return
     _actionOutput = ""
     _actionError = ""
-    actionStatus = label || "Working…"
+    actionStatus = label || ""
     actionProcess.command = command
     actionProcess.running = true
   }
@@ -318,6 +368,8 @@ Item {
     var match = String(text || "").match(/https?:\/\/\S+/)
     var url = match && match[0] ? match[0] : (allowFallback === true ? authUrl : "")
     if (url !== "") {
+      // Turning on ended up needing browser auth — stop pretending we're up.
+      _desired = -1
       _loginUrlOpened = true
       _loginInProgress = false
       loginTimeoutTimer.stop()
@@ -344,10 +396,42 @@ Item {
   }
 
   Timer {
+    // After a fresh boot the startup poll usually lands before tailscaled has
+    // connected, which left the icon stale until the next periodic refresh.
+    // Poll quickly until the service shows up, or give up after ~30 seconds.
+    id: startupRamp
+    property int ticks: 0
+    interval: 2000
+    repeat: true
+    running: true
+    onTriggered: {
+      ticks += 1
+      if (root.running || ticks >= 15) startupRamp.running = false
+      else root.refresh()
+    }
+  }
+
+  Timer {
     id: delayedRefresh
     interval: 600
     repeat: false
     onTriggered: root.refresh()
+  }
+
+  Timer {
+    // Every poll is skipped while its own process is still running, so one that
+    // never exits — tailscale can hang on a network that is coming and going —
+    // silently stops the panel refreshing at all, and it stays stopped. Reap
+    // anything still running well inside the refresh interval so the next tick
+    // starts clean.
+    id: pollWatchdog
+    interval: 15000
+    repeat: false
+    onTriggered: {
+      if (statusProcess.running) statusProcess.running = false
+      if (mullvadExitNodesProcess.running) mullvadExitNodesProcess.running = false
+      if (accountsProcess.running) accountsProcess.running = false
+    }
   }
 
   Timer {
@@ -447,8 +531,10 @@ Item {
       var stdout = String(actionStdout.text || root._actionOutput || "")
       var stderr = String(actionStderr.text || root._actionError || "")
       if (exitCode !== 0) {
+        root._desired = -1
         root.lastError = elideStatus(stderr || stdout || "Tailscale command failed")
         root.actionStatus = root.lastError
+        actionStatusTimer.restart()
       } else {
         root.lastError = ""
         root.actionStatus = ""
@@ -467,9 +553,11 @@ Item {
       var combined = String(root._loginOutput || "") + "\n" + String(root._loginError || "")
       var opened = root.openAuthUrlFrom(combined, true)
       if (exitCode !== 0 && !opened) {
+        root._desired = -1
         root._loginInProgress = false
         root.lastError = elideStatus(combined || "tailscale up failed")
         root.actionStatus = root.lastError
+        actionStatusTimer.restart()
       } else if (!opened) {
         root.lastError = ""
         root.actionStatus = ""
@@ -490,6 +578,7 @@ Item {
       if (exitCode !== 0) {
         root.lastError = elideStatus(stderr || stdout || "Account switch failed")
         root.actionStatus = root.lastError
+        actionStatusTimer.restart()
       } else {
         root.lastError = ""
         root.actionStatus = ""
@@ -512,6 +601,7 @@ Item {
       if (exitCode !== 0) {
         root.lastError = elideStatus(stderr || stdout || "Exit node selection failed")
         root.actionStatus = root.lastError
+        actionStatusTimer.restart()
       } else {
         root.lastError = ""
         root.actionStatus = ""
@@ -533,6 +623,7 @@ Item {
       if (exitCode !== 0) {
         root.lastError = elideStatus(stderr || stdout || "Tailscale authorization failed")
         root.actionStatus = root.lastError
+        actionStatusTimer.restart()
       } else {
         root.accountsAccessDenied = false
         root.lastError = ""
