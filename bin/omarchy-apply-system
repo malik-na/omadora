@@ -80,6 +80,8 @@ run_logged "$OMARCHY_INSTALL/config/lockscreen-pam.sh"
 run_logged "$OMARCHY_INSTALL/config/fix-powerprofilesctl-shebang.sh"
 run_logged "$OMARCHY_INSTALL/config/docker.sh"
 run_logged "$OMARCHY_INSTALL/config/snapper.sh"
+run_logged "$OMARCHY_INSTALL/helpers/fedora-grub-btrfs.sh"
+run_logged "$OMARCHY_INSTALL/config/grub-btrfs.sh"
 run_logged "$OMARCHY_INSTALL/config/enable-services.sh"
 run_logged "$OMARCHY_INSTALL/config/firewall.sh"
 

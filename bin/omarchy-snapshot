@@ -4,9 +4,9 @@
 # omarchy:args=<create|restore>
 # omarchy:requires-sudo=true
 
-set -e
+set -euo pipefail
 
-COMMAND="$1"
+COMMAND="${1:-}"
 
 if [[ -z $COMMAND ]]; then
   echo "Usage: omarchy-snapshot <create|restore>" >&2
@@ -17,28 +17,50 @@ if omarchy-cmd-missing snapper; then
   exit 127 # omarchy-update can use this to just ignore if snapper is not available
 fi
 
+refresh_grub_snapshots() {
+  if sudo test -x /etc/grub.d/41_snapshots-btrfs; then
+    sudo /etc/grub.d/41_snapshots-btrfs >/dev/null 2>&1 || true
+    if [[ -d /boot/grub2 ]]; then
+      sudo grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 || true
+    fi
+  fi
+}
+
 case "$COMMAND" in
 create)
-  DESC="omarchy-update"
+  DESC="$(omarchy-version 2>/dev/null || echo omarchy-update)"
+
+  mapfile -t CONFIGS < <(sudo snapper --csvout list-configs | awk -F, 'NR>1 {print $1}')
+
+  if (( ${#CONFIGS[@]} == 0 )); then
+    echo -e "\e[33mNo Snapper configs found, so no snapshot was created.\e[0m" >&2
+    echo "Configure Snapper with: sudo bash -euo pipefail \"$OMARCHY_PATH/install/config/snapper.sh\"" >&2
+    exit 1
+  fi
 
   echo -e "\e[32mCreate system snapshot\e[0m"
-
-  # Get existing snapper config names from CSV output
-  mapfile -t CONFIGS < <(sudo snapper --csvout list-configs | awk -F, 'NR>1 {print $1}')
 
   for config in "${CONFIGS[@]}"; do
     sudo snapper -c "$config" create -c number -d "$DESC"
     sudo snapper -c "$config" cleanup number
   done
+
+  refresh_grub_snapshots
+  echo "Snapshots can be selected during boot (GRUB submenu) or via: omarchy snapshot restore"
   echo
   ;;
 restore)
   if omarchy-cmd-present limine-snapper-restore; then
     sudo limine-snapper-restore
+  elif omarchy-cmd-present omarchy-mac-snapshot-restore; then
+    sudo omarchy-mac-snapshot-restore
   else
-    # Fedora Asahi has no limine; restoring means rolling the root subvolume back with snapper.
-    echo "Pick a snapshot with 'sudo snapper list', then run 'sudo snapper rollback <number>' and reboot."
+    echo "No snapshot restore helper found." >&2
     exit 1
   fi
+  ;;
+*)
+  echo "Usage: omarchy-snapshot <create|restore>" >&2
+  exit 1
   ;;
 esac
