@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Apply Omarchy system setup in the installed target
+# omarchy:hidden=true
 # omarchy:group=setup
 # omarchy:requires-sudo=true
 # omarchy:examples=omarchy setup system --install-user dhh --first-install
