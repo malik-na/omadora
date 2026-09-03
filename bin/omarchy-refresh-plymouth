@@ -1,12 +1,29 @@
 #!/bin/bash
 
-# omarchy:summary=Overwrite the user config for the Plymouth drive decryption and boot sequence with the Omarchy default and rebuild it.
+# omarchy:summary=Overwrite the Plymouth theme with Omarchy defaults and rebuild initramfs
 # omarchy:requires-sudo=true
 
-sudo cp -r ~/.local/share/omarchy/default/plymouth/* /usr/share/plymouth/themes/omarchy/
+set -euo pipefail
+
+theme_src="${OMARCHY_PATH}/default/plymouth"
+theme_dst="/usr/share/plymouth/themes/omarchy"
+
+sudo mkdir -p "$theme_dst"
+sudo cp -RT "$theme_src" "$theme_dst"
 sudo plymouth-set-default-theme omarchy
 
+if [[ -f ${OMARCHY_PATH}/etc/plymouth/plymouthd.conf ]]; then
+  sudo install -Dm644 "${OMARCHY_PATH}/etc/plymouth/plymouthd.conf" /etc/plymouth/plymouthd.conf
+fi
+
+failed=0
 for kernel in /lib/modules/*; do
+  [[ -d $kernel ]] || continue
   kver=$(basename "$kernel")
-  sudo dracut --force "/boot/initramfs-$kver.img" "$kver"
+  if ! sudo dracut --force "/boot/initramfs-${kver}.img" "$kver"; then
+    echo "[WARN] dracut failed for $kver" >&2
+    failed=1
+  fi
 done
+
+exit "$failed"

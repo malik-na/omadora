@@ -85,7 +85,9 @@ run_logged "$OMARCHY_INSTALL/config/firewall.sh"
 
 omarchy-setup-hardware --install-user "$install_user"
 
+run_logged "$OMARCHY_INSTALL/login/plymouth.sh"
 run_logged "$OMARCHY_INSTALL/login/sddm.sh"
+run_logged "$OMARCHY_INSTALL/login/dracut.sh"
 
 run_logged "$OMARCHY_INSTALL/post-install/udev.sh"
 run_logged "$OMARCHY_INSTALL/post-install/localdb.sh"
