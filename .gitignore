@@ -37,3 +37,6 @@ __pycache__/
 # Project roadmap (local only)
 Roadmap.md
 # Python bytecode (orchestrator)
+
+# Local e2e docker harness output
+.e2e-logs/
