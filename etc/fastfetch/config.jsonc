@@ -10,7 +10,11 @@
       "left": 2
     }
   },
+  "display": {
+    "disableLinewrap": true
+  },
   "modules": [
+    "break",
     "break",
     {
       "type": "custom",
@@ -31,6 +35,7 @@
       "type": "gpu",
       "key": "│ ├",
       "detectionMethod": "pci",
+      "format": "{name}",
       "keyColor": "green"
     },
     {

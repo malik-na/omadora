@@ -39,6 +39,14 @@ install -Dm755 "$omarchy_default/systemd/system-sleep/unmount-fuse" \
 install -Dm644 "$omarchy_default/systemd/user@.service.d/faster-shutdown.conf" \
   /usr/lib/systemd/system/user@.service.d/faster-shutdown.conf
 
+# zram tuning drop-in (full RAM, zstd). Outranks Fedora's
+# /usr/lib/systemd/zram-generator.conf default of min(ram, 8192).
+if [[ -d $omarchy_default/systemd/zram-generator.conf.d ]]; then
+  install -d /usr/lib/systemd/zram-generator.conf.d
+  cp -f "$omarchy_default"/systemd/zram-generator.conf.d/*.conf \
+    /usr/lib/systemd/zram-generator.conf.d/
+fi
+
 # OMARCHY_PATH for every layer. /etc/omarchy.conf is the source of truth
 # env-bootstrap reads (omarchy-dev-link/-unlink rewrite it); without it every
 # consumer falls back to the Arch package path /usr/share/omarchy, which does

@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=No-op keyring update on Fedora (rpm metadata)
 
 echo "Fedora manages repository keys through RPM metadata. No Omarchy keyring update is required."
 exit 0

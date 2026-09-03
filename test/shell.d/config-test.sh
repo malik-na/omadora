@@ -16,27 +16,27 @@ pass "default shell.json is valid JSON"
 jq -e '.version == 1 and (.bar.layout.left | type == "array") and (.bar.layout.center | type == "array") and (.bar.layout.right | type == "array")' "$ROOT/config/omarchy/shell.json" >/dev/null
 pass "default shell.json has versioned bar layout"
 
+# Mac fork: the notch design keeps the bar center empty (nothing sits behind the
+# camera housing) and places clock/weather/update/indicators on the right, so
+# these assertions target the right section instead of upstream's center.
 jq -e '
   def ids: map(.id // .);
-  .bar.layout.center | ids == [
-    "omarchy.clock",
-    "omarchy.weather",
-    "omarchy.system-update",
-    "omarchy.indicators"
-  ]
+  (.bar.layout.right | ids) as $r |
+  ($r | index("omarchy.weather")) as $w |
+  $w != null and $r[$w + 1] == "omarchy.system-update" and $r[$w + 2] == "omarchy.indicators"
 ' "$ROOT/config/omarchy/shell.json" >/dev/null
-pass "default center layout keeps update next to weather"
+pass "default right layout keeps update next to weather"
 
 jq -e '
-  (.bar.centerAnchor // "") as $anchor |
-  any(.bar.layout.center[]; (.id // .) == $anchor)
+  (.bar.layout.center | length == 0) and (.bar.centerAnchor // "") == ""
 ' "$ROOT/config/omarchy/shell.json" >/dev/null
-pass "default center anchor exists in center layout"
+pass "default center is empty for the notch (no center anchor)"
 
 jq -e '
-  any(.bar.layout.center[]; (.id // .) == "omarchy.clock" and (.formatAlt // "") == "d MMMM \u0027W\u0027ww yyyy")
+  any(.bar.layout.right[]; (.id // .) == "omarchy.clock" and (.formatAlt // "") == "d MMMM \u0027W\u0027ww yyyy")
 ' "$ROOT/config/omarchy/shell.json" >/dev/null
 pass "default clock date format has no leading zero"
+
 
 ROOT="$ROOT" python3 <<'PY'
 import json
@@ -94,12 +94,29 @@ import sys
 from pathlib import Path
 
 root = Path(os.environ["ROOT"])
+home = Path.home()
 pkgs_candidates = [
   root.parent / "omarchy-pkgs/pkgbuilds",
   root.parent / "omarchy/omarchy-pkgs/pkgbuilds",
   root.parent.parent / "omarchy-pkgs/pkgbuilds",
+  root.parent / "omacom/omarchy-pkgs/pkgbuilds",
+  root.parent.parent / "omacom/omarchy-pkgs/pkgbuilds",
+  home / "Work/omacom/omarchy-pkgs/pkgbuilds",
 ]
-pkgs_root = next((path for path in pkgs_candidates if path.exists()), pkgs_candidates[0])
+# Checkouts differ per machine, so allow an explicit pointer at the sibling repo.
+# Accepts either the omarchy-pkgs checkout or its pkgbuilds/ directory.
+override = os.environ.get("OMARCHY_PKGS_PATH")
+if override:
+  pkgs_candidates = [Path(override) / "pkgbuilds", Path(override)] + pkgs_candidates
+pkgs_root = next((path for path in pkgs_candidates if path.exists()), None)
+if pkgs_root is None:
+  print("not ok - omarchy-pkgs checkout found for PKGBUILD coverage", file=sys.stderr)
+  print(
+    "looked in:\n  " + "\n  ".join(str(path) for path in pkgs_candidates) +
+    "\nset OMARCHY_PKGS_PATH to the omarchy-pkgs checkout",
+    file=sys.stderr,
+  )
+  sys.exit(1)
 settings_pkgbuild_path = pkgs_root / "omarchy-settings/PKGBUILD"
 omarchy_pkgbuild_path = pkgs_root / "omarchy/PKGBUILD"
 if not settings_pkgbuild_path.exists():
@@ -120,8 +137,11 @@ package_defaults = [
   ("default/systemd/user/bt-agent.service", "/usr/lib/systemd/user/bt-agent.service", "systemd/user/bt-agent.service"),
   ("default/systemd/user/omarchy-sleep-lock.service", "/usr/lib/systemd/user/omarchy-sleep-lock.service", "systemd/user/omarchy-sleep-lock.service"),
   ("default/systemd/user/omarchy-recover-internal-monitor.service", "/usr/lib/systemd/user/omarchy-recover-internal-monitor.service", "systemd/user/omarchy-recover-internal-monitor.service"),
-  ("default/systemd/user/omarchy-update-user-notify.service", "/usr/lib/systemd/user/omarchy-update-user-notify.service", "systemd/user/omarchy-update-user-notify.service"),
-  ("default/systemd/user/omarchy-update-user-notify.path", "/usr/lib/systemd/user/omarchy-update-user-notify.path", "systemd/user/omarchy-update-user-notify.path"),
+  ("default/systemd/user/omarchy-migrate-notify.service", "/usr/lib/systemd/user/omarchy-migrate-notify.service", "systemd/user/omarchy-migrate-notify.service"),
+  ("default/systemd/user/omarchy-tailscale-receive.service", "/usr/lib/systemd/user/omarchy-tailscale-receive.service", "systemd/user/omarchy-tailscale-receive.service"),
+  ("default/systemd/user/omarchy-fcitx5.service", "/usr/lib/systemd/user/omarchy-fcitx5.service", "systemd/user/omarchy-fcitx5.service"),
+  ("default/systemd/user/omarchy-crash-watch.service", "/usr/lib/systemd/user/omarchy-crash-watch.service", "systemd/user/omarchy-crash-watch.service"),
+  ("default/systemd/zram-generator.conf.d/90-omarchy.conf", "/usr/lib/systemd/zram-generator.conf.d/90-omarchy.conf", "systemd/zram-generator.conf.d/90-omarchy.conf"),
   ("default/fonts/omarchy/omarchy.ttf", "/usr/share/fonts/omarchy/omarchy.ttf", "omarchy.ttf"),
   ("default/snapper/root", "/etc/snapper/config-templates/omarchy", "snapper/root"),
 ]
@@ -133,6 +153,16 @@ for source, destination, legacy in package_defaults:
     errors.append(f"legacy path still in config/: {legacy}")
   if destination and (source not in pkgbuild or destination not in pkgbuild):
     errors.append(f"PKGBUILD does not explicitly install {source} -> {destination}")
+
+# Existing users have an absolute wants symlink to the old unit path, and the
+# migration that repoints it only runs for users who run an update -- the
+# opposite of who the notifier is for. Dropping this alias strands them.
+notify_alias = 'ln -sfn omarchy-migrate-notify.service "$pkgdir/usr/lib/systemd/user/omarchy-update-user-notify.service"'
+if notify_alias not in pkgbuild:
+  errors.append(
+    "PKGBUILD does not ship the omarchy-update-user-notify.service compatibility "
+    "alias, so users who have not run migration 1785095882 lose the login notifier"
+  )
 
 alpm_hooks = [
   "00-omarchy-update-guard.hook",
@@ -179,14 +209,27 @@ pass "Hyprland bootstrap reloads cached Omarchy config modules"
 TMPDIR=$(mktemp -d)
 mkdir -p "$TMPDIR/home/.config/omarchy"
 
+ipc_mock_bin="$TMPDIR/ipc-mock"
+mkdir -p "$ipc_mock_bin"
+cat >"$ipc_mock_bin/omarchy-shell" <<'SH'
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p "$HOME/.local/state/omarchy"
+printf '%s\n' "$*" >>"$HOME/.local/state/omarchy/shell-ipc-calls"
+printf 'ok\n'
+SH
+chmod +x "$ipc_mock_bin/omarchy-shell"
+export PATH="$ipc_mock_bin:$PATH"
+
 cat >"$TMPDIR/home/.config/omarchy/shell.json" <<'JSON'
 {
   "version": 1,
   "bar": {
     "layout": {
-      "left": [{ "id": "omarchy.menu" }, { "id": "omarchy.workspaces" }],
-      "center": [{ "id": "omarchy.clock" }, { "id": "omarchy.weather" }],
-      "right": [{ "id": "omarchy.tray" }, { "id": "omarchy.bluetooth" }]
+      "left": [{ "id": "omarchy.menu" }, { "id": "omarchy.workspaces" }, { "id": "omarchy.active-window" }],
+      "center": [{ "id": "omarchy.clock" }, { "id": "omarchy.weather" }, { "id": "omarchy.system-update" }, { "id": "omarchy.tailscale" }],
+      "right": [{ "id": "omarchy.tray" }, { "id": "omarchy.microphone" }, { "id": "omarchy.bluetooth" }]
     }
   },
   "plugins": []
@@ -221,38 +264,20 @@ HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar reset
 jq -e '.bar.id == null' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "shell config resets to built-in bar option"
 
-HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar-plugin add omarchy.tailscale
-jq -e '
-  def ids: map(.id // .);
-  .bar.layout.right | ids == ["omarchy.tray", "omarchy.tailscale", "omarchy.bluetooth"]
-' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "shell config appends widgets to right by default"
+HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar move omarchy.active-window right
+grep -Fqx 'shell moveBarWidget omarchy.active-window {"section":"right"}' \
+  "$TMPDIR/home/.local/state/omarchy/shell-ipc-calls"
+pass "bar move accepts a positional target section"
 
-HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar-plugin add omarchy.active-window left
-jq -e '
-  def ids: map(.id // .);
-  .bar.layout.left | ids == ["omarchy.menu", "omarchy.workspaces", "omarchy.active-window"]
-' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "shell config appends left widgets after workspaces"
+HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar move omarchy.active-window left
+grep -Fqx 'shell moveBarWidget omarchy.active-window {"section":"left"}' \
+  "$TMPDIR/home/.local/state/omarchy/shell-ipc-calls"
+pass "bar move can restore a widget with positional syntax"
 
-HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar-plugin add omarchy.system-update center
-jq -e '
-  def ids: map(.id // .);
-  .bar.layout.center | ids == ["omarchy.clock", "omarchy.weather", "omarchy.system-update"]
-' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "shell config appends center widgets after weather"
-
-HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar-plugin add omarchy.microphone right
-jq -e '
-  def ids: map(.id // .);
-  .bar.layout.right | ids == ["omarchy.tray", "omarchy.microphone", "omarchy.tailscale", "omarchy.bluetooth"]
-' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "shell config moves existing widgets without duplicates"
-
-if HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar-plugin add local.nonexistent-widget 2>/dev/null; then
-  fail "bar plugin add accepted an unknown widget"
+if HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar move omarchy.active-window left --section right 2>/dev/null; then
+  fail "bar move accepted positional and flagged target sections"
 fi
-pass "bar plugin add rejects an unknown widget"
+pass "bar move rejects conflicting target section syntax"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar position bottom
 jq -e '
@@ -269,21 +294,29 @@ jq -e '
 ' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "shell config sets bar transparency"
 
-HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar-plugin drop omarchy.active-window
-jq -e '
-  def ids: map(.id // .);
-  (.bar.layout.left | ids == ["omarchy.menu", "omarchy.workspaces"]) and
-  (.bar.layout.center | ids == ["omarchy.clock", "omarchy.weather", "omarchy.system-update"]) and
-  (.bar.layout.right | ids == ["omarchy.tray", "omarchy.microphone", "omarchy.tailscale", "omarchy.bluetooth"])
-' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "shell config drops widgets from any section"
+HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar transparent toggle
+jq -e '.bar.transparent == false' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
+pass "shell config toggles bar transparency"
 
-HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar-plugin remove omarchy.system-update
-jq -e '
-  def ids: map(.id // .);
-  .bar.layout.center | ids == ["omarchy.clock", "omarchy.weather"]
-' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "shell config removes widgets with remove alias"
+HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar set omarchy.bluetooth enabled false --json
+grep -Fqx 'shell setBarWidget omarchy.bluetooth enabled false {}' \
+  "$TMPDIR/home/.local/state/omarchy/shell-ipc-calls"
+pass "bar set accepts false JSON values"
+
+HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar set omarchy.bluetooth optional null --json
+grep -Fqx 'shell setBarWidget omarchy.bluetooth optional null {}' \
+  "$TMPDIR/home/.local/state/omarchy/shell-ipc-calls"
+pass "bar set accepts null JSON values"
+
+if HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar set omarchy.bluetooth broken '{' --json 2>/dev/null; then
+  fail "bar set accepted malformed JSON"
+fi
+pass "bar set rejects malformed JSON"
+
+if HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar set omarchy.bluetooth broken 'false null' --json 2>/dev/null; then
+  fail "bar set accepted multiple JSON values"
+fi
+pass "bar set rejects multiple JSON values"
 
 mock_bin="$TMPDIR/mock-bin"
 mkdir -p "$mock_bin"
@@ -308,7 +341,8 @@ SH
 
 cat >"$mock_bin/omarchy-shell" <<'SH'
 #!/bin/bash
-exit 0
+[[ ${OMARCHY_TEST_SHELL_DOWN:-0} == "1" ]] && exit 1
+printf 'ok\n'
 SH
 
 cat >"$mock_bin/omarchy-installed-service-dropbox" <<'SH'
@@ -338,27 +372,47 @@ pass "bar defaults restores the stock bar"
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" PATH="$mock_path" OMARCHY_TEST_DROPBOX=1 OMARCHY_TEST_TAILSCALE=1 omarchy-bar defaults
 jq -e '
   def ids: map(.id // .);
-  (.bar.layout.right | ids | index("omarchy.dropbox") != null) and
-  (.bar.layout.right | ids | index("omarchy.tailscale") != null)
+  (.bar.layout.right | ids) as $right |
+  ($right | index("omarchy.tray")) as $tray |
+  ($right | index("omarchy.tailscale") == $tray + 1) and
+  ($right | index("omarchy.dropbox") == $tray + 2) and
+  (.bar.layout.center | ids | index("omarchy.tailscale") == null)
 ' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "bar defaults adds widgets for running optional services"
+pass "bar defaults places plugins for running optional services"
+
+HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" PATH="$mock_path" \
+  OMARCHY_TEST_SHELL_DOWN=1 OMARCHY_TEST_DROPBOX=1 OMARCHY_TEST_TAILSCALE=1 \
+  omarchy-bar defaults
+jq -e '
+  def ids: map(.id // .);
+  (.bar.layout.right | ids) as $right |
+  ($right | index("omarchy.tray")) as $tray |
+  ($right | index("omarchy.tailscale") == $tray + 1) and
+  ($right | index("omarchy.dropbox") == $tray + 2) and
+  (.bar.layout.center | ids | index("omarchy.tailscale") == null)
+' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
+pass "bar defaults places service widgets without a running shell"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" PATH="$mock_path" OMARCHY_TEST_DROPBOX=0 OMARCHY_TEST_TAILSCALE=0 omarchy-refresh-shell
 jq -e '
   def ids: map(.id // .);
-  (.bar.layout.right | ids | index("omarchy.dropbox") == null) and
-  (.bar.layout.right | ids | index("omarchy.tailscale") == null)
+  ([.bar.layout.left, .bar.layout.center, .bar.layout.right] | map(ids) | add) as $all |
+  ($all | index("omarchy.dropbox") == null) and
+  ($all | index("omarchy.tailscale") == null)
 ' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "shell refresh keeps optional service widgets absent when services are unavailable"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" PATH="$mock_path" OMARCHY_TEST_DROPBOX=1 OMARCHY_TEST_TAILSCALE=1 omarchy-refresh-shell
 jq -e '
   def ids: map(.id // .);
-  (.bar.layout.right | ids | index("omarchy.dropbox") != null) and
-  (.bar.layout.right | ids | index("omarchy.tailscale") != null)
+  (.bar.layout.right | ids) as $right |
+  ($right | index("omarchy.tray")) as $tray |
+  ($right | index("omarchy.tailscale") == $tray + 1) and
+  ($right | index("omarchy.dropbox") == $tray + 2) and
+  (.bar.layout.center | ids | index("omarchy.tailscale") == null)
 ' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 [[ -f $TMPDIR/home/.local/state/omarchy/restart-shell-called ]] || fail "shell refresh restarts shell"
-pass "shell refresh adds optional service widgets when services are available"
+pass "shell refresh places optional service widgets when services are available"
 
 clock_migration=$(grep -rl 'Remove leading zero from bar clock date' "$ROOT/migrations" | head -n 1 || true)
 [[ -n $clock_migration ]] || fail "clock date format user migration exists"

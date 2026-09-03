@@ -1,3 +1,4 @@
 #!/bin/bash
+# omarchy:summary=Reboot the system
 
 omarchy-system-reboot

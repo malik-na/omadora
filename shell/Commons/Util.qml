@@ -17,6 +17,17 @@ QtObject {
     return clamp(value, 0, 1)
   }
 
+  function wheelSteps(accumulator, delta) {
+    // Some mouse/compositor combinations scale a single notch well beyond
+    // Qt's conventional 120 units. Keep one event to one step while still
+    // accumulating the smaller deltas emitted by touchpads.
+    delta = Math.max(-120, Math.min(120, delta))
+    if (accumulator * delta < 0) accumulator = 0
+    var total = accumulator + delta
+    var steps = total < 0 ? Math.ceil(total / 120) : Math.floor(total / 120)
+    return { steps: steps, remainder: total - steps * 120 }
+  }
+
   // Compose a base color with an opacity. Accepts a color object or a hex
   // string; null/undefined yields transparent black at the requested alpha.
   function alpha(c, opacity) {
@@ -41,6 +52,15 @@ QtObject {
 
   function execDetached(command) {
     Quickshell.execDetached(["bash", "-lc", command])
+  }
+
+  // Run an argv vector without a shell interpreting it: the constant `exec "$@"`
+  // means the args only ever land in positional parameters, which bash expands
+  // without re-tokenizing — so untrusted data ($(id), a filename) stays literal.
+  // The login shell (-l) keeps the PATH/session env GUI targets (tensaku, mpv,
+  // xdg-open) need. Prefer this over execDetached for anything built from input.
+  function execArgv(argv) {
+    Quickshell.execDetached(["bash", "-lc", 'exec "$@"', "bash"].concat(argv))
   }
 
   function isPlainObject(value) {

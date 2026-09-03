@@ -12,9 +12,13 @@ cleanup() {
     kill "$QS_PID" 2>/dev/null || true
     wait "$QS_PID" 2>/dev/null || true
   fi
-  [[ -n $TMPDIR && -d $TMPDIR ]] && rm -rf "$TMPDIR"
+  if [[ -n $TMPDIR && -d $TMPDIR ]]; then
+    rm -rf "$TMPDIR"
+  fi
 }
 trap cleanup EXIT
+
+require_compositor "QML contract test"
 
 if ! command -v quickshell >/dev/null 2>&1; then
   pass "quickshell not installed; skipping QML contract test"
@@ -35,6 +39,9 @@ ln -s "$ROOT/shell/Commons" "$config_dir/Commons"
 OMARCHY_PATH="$ROOT" \
 OMARCHY_QML_TEST_RESULT="$result" \
 HOME="$TMPDIR/home" \
+XDG_CONFIG_HOME="$TMPDIR/home/.config" \
+XDG_CACHE_HOME="$TMPDIR/home/.cache" \
+XDG_STATE_HOME="$TMPDIR/home/.local/state" \
 QML2_IMPORT_PATH="$ROOT/shell${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}" \
 QML_IMPORT_PATH="$ROOT/shell${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}" \
 PATH="$ROOT/bin:$PATH" \
@@ -61,6 +68,11 @@ if ! jq -e '.ok == true' "$result" >/dev/null; then
   printf 'QML contract log:\n' >&2
   sed -n '1,160p' "$log" >&2
   fail "QML indicator contract checks pass"
+fi
+
+if rg -q 'Indicators.qml.*Binding loop detected for property "implicitWidth"' "$log"; then
+  sed -n '1,200p' "$log" >&2
+  fail "indicator tray avoids implicit-width binding loops"
 fi
 
 pass "QML indicator contract checks pass"

@@ -7,7 +7,7 @@
 --   input = {
 --     -- Use multiple keyboard layouts and switch between them with Left Alt + Right Alt.
 --     kb_layout = "us,dk,eu",
---     kb_options = "compose:caps,shift:both_capslock,grp:alts_toggle",
+--     kb_options = "compose:caps,shift:both_capslock_cancel,grp:alts_toggle",
 --
 --     -- Use a specific keyboard variant if needed (e.g. intl for international keyboards).
 --     kb_variant = "intl",
@@ -26,8 +26,11 @@
 --     accel_profile = "flat",
 --
 --     touchpad = {
---       -- Use natural (inverse) scrolling.
---       natural_scroll = true,
+--       -- Use traditional (non-inverse) scrolling.
+--       natural_scroll = false,
+--
+--       -- Re-enable tap-to-click (one-finger tap = left, two-finger = right).
+--       tap_to_click = true,
 --
 --       -- Use two-finger clicks for right-click instead of lower-right corner.
 --       clickfinger_behavior = true,

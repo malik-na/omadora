@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=Check whether an Omarchy update is available
 
 set -euo pipefail
 

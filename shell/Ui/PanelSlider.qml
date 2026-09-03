@@ -18,10 +18,21 @@ Item {
   property real knobSize: Math.max(14, Math.round(Style.spacing.controlHeight * 0.38))
   property real liveValue: value
 
+  // macOS-style notches. When > 1, that many evenly-spaced tick marks are cut
+  // into the track (drawn in the panel background color, so only the part
+  // crossing the track shows). Purely visual — snapping is the caller's job via
+  // `integer`/`step` or an index-based value. Default 0 leaves the track plain.
+  property int tickCount: 0
+  property color tickColor: bar ? bar.background : Color.background
+
   onValueChanged: if (!dragging) liveValue = value
 
   signal moved(real value)
   signal released(real value)
+
+  // Right-click is a secondary action on the whole track — audio uses it to
+  // mute the channel the slider belongs to. Dragging stays left-button only.
+  signal rightClicked()
 
   implicitWidth: Style.space(200)
   implicitHeight: Math.max(Style.space(22), knobSize + Style.spacing.md)
@@ -55,6 +66,20 @@ Item {
     }
   }
 
+  Repeater {
+    model: root.tickCount > 1 ? root.tickCount : 0
+    Rectangle {
+      required property int index
+      width: Math.max(1, Style.space(2))
+      height: root.trackHeight + Style.space(4)
+      radius: 1
+      color: root.tickColor
+      anchors.verticalCenter: track.verticalCenter
+      x: Math.max(0, Math.min(track.width - width,
+                              track.width * (index / (root.tickCount - 1)) - width / 2))
+    }
+  }
+
   BorderSurface {
     id: knob
     width: root.knobSize
@@ -81,7 +106,7 @@ Item {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    acceptedButtons: Qt.LeftButton
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
 
     function valueFromX(x) {
       var clamped = Math.max(0, Math.min(track.width, x))
@@ -91,10 +116,14 @@ Item {
     }
 
     onPressed: function(mouse) {
+      if (mouse.button !== Qt.LeftButton) return
       root.dragging = true
       var next = valueFromX(mouse.x)
       root.liveValue = next
       root.moved(next)
+    }
+    onClicked: function(mouse) {
+      if (mouse.button === Qt.RightButton) root.rightClicked()
     }
     onPositionChanged: function(mouse) {
       if (!root.dragging) return
@@ -103,6 +132,7 @@ Item {
       root.moved(next)
     }
     onReleased: function(mouse) {
+      if (mouse.button !== Qt.LeftButton) return
       root.dragging = false
       root.released(root.liveValue)
       root.liveValue = root.value

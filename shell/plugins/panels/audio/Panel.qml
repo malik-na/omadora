@@ -17,7 +17,7 @@ Panel {
   readonly property var source: Pipewire.defaultAudioSource
   readonly property var nodes: Pipewire.nodes ? Pipewire.nodes.values : []
   readonly property var mprisPlayers: Mpris.players ? Mpris.players.values : []
-  readonly property var mediaService: bar && bar.shell ? bar.shell.firstPartyServiceFor("omarchy.media") : null
+  readonly property var mediaService: bar?.shell?.firstPartyServiceFor("omarchy.media")
   readonly property var activeMediaPlayer: mediaService ? mediaService.activePlayer : null
 
   readonly property var candidateSinks: {
@@ -46,7 +46,11 @@ Panel {
     var list = []
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i]
-      if (n && n.isStream && isPlaybackStream(n)) list.push(n)
+      if (!n || !n.isStream || !isPlaybackStream(n)) continue
+      // A tuning's output is a playback stream too, but it is the processing
+      // itself rather than an application, so it does not belong in the list.
+      if (String(n.name || "").indexOf("omarchy_speaker_tuning") === 0) continue
+      list.push(n)
     }
     return list
   }
@@ -105,8 +109,42 @@ Panel {
   property var displayAudioSources: []
   property var displayAudioStreams: []
 
-  readonly property real outputVolume: sink && sink.audio ? sink.audio.volume : 0
-  readonly property bool outputMuted: sink && sink.audio ? sink.audio.muted : false
+  // A DSP sink -- a speaker tuning, or EasyEffects -- can be the selected output
+  // without being where loudness lives: changing its volume alters the level going
+  // *into* the processing, so the slider would move while the speakers did not,
+  // and on a chain with a limiter it would change the tone as well.
+  //
+  // omarchy-audio-output-sink resolves the *current* default output through any
+  // such sink to the physical one, which is the same definition the volume keys
+  // and the output switcher use. Resolving the default (rather than "whatever a
+  // tuning fronts") is what keeps this correct when headphones or HDMI are
+  // selected while a tuning still exists.
+  property string volumeSinkName: ""
+
+  // Carry sub-notch touchpad deltas between wheel events.
+  property real wheelAccumulator: 0
+
+  readonly property var volumeSink: {
+    if (volumeSinkName === "" || !sink) return sink
+    if (volumeSinkName === String(sink.name)) return sink
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i]
+      if (n && n.isSink && !n.isStream && String(n.name) === volumeSinkName && n.audio)
+        return n
+    }
+    return sink
+  }
+
+  // Re-resolve whenever the selected output changes; the timer below is only a
+  // safety net for the tuning being applied or removed underneath us.
+  onSinkChanged: resolveVolumeSink()
+
+  function resolveVolumeSink() {
+    if (!volumeSinkProc.running) volumeSinkProc.running = true
+  }
+
+  readonly property real outputVolume: volumeSink && volumeSink.audio ? volumeSink.audio.volume : 0
+  readonly property bool outputMuted: volumeSink && volumeSink.audio ? volumeSink.audio.muted : false
   readonly property real inputVolume: source && source.audio ? source.audio.volume : 0
   readonly property bool inputMuted: source && source.audio ? source.audio.muted : false
 
@@ -126,6 +164,17 @@ Panel {
   property string focusSection: "output"
   property int selectedIndex: -1
   property bool cursorActive: false
+
+  // "header" is a virtual section for the hero output mute toggle; it sits
+  // above the output section so the speaker can be muted from the keyboard.
+  readonly property bool headerHasCursor: cursorActive && focusSection === "header"
+  // Only channels that actually exist get a vote. A box with no default source
+  // would otherwise report "input unmuted" forever, leaving the hero switch
+  // able to mute but never to unmute.
+  readonly property bool hasOutput: !!(volumeSink && volumeSink.audio)
+  readonly property bool hasInput: !!(source && source.audio)
+  readonly property bool anyAudible: (hasOutput && !outputMuted) || (hasInput && !inputMuted)
+  readonly property string toggleHint: anyAudible ? "Mute" : "Unmute"
 
   readonly property color hoverFill: bar
     ? Style.hoverFillFor(bar.foreground, Color.accent)
@@ -167,6 +216,10 @@ Panel {
   function moveCursor(delta) {
     var sections = visibleSections
     if (sections.length === 0) return
+    if (focusSection === "header") {
+      if (delta > 0) { focusSection = sections[0]; selectedIndex = sectionHasSlider(sections[0]) ? -1 : 0 }
+      return
+    }
     var sIdx = sections.indexOf(focusSection)
     if (sIdx < 0) { focusSection = sections[0]; selectedIndex = sectionHasSlider(focusSection) ? -1 : 0; return }
 
@@ -189,8 +242,16 @@ Panel {
         focusSection = sections[sIdx - 1]
         var prevMax = sectionCount(focusSection) - 1
         selectedIndex = prevMax >= 0 ? prevMax : (sectionHasSlider(focusSection) ? -1 : 0)
+      } else {
+        focusSection = "header"
       }
     }
+  }
+
+  function setHeaderCursor() {
+    cursorActive = true
+    focusSection = "header"
+    selectedIndex = -1
   }
 
   function moveSection(delta) {
@@ -227,6 +288,7 @@ Panel {
 
   // Enter/Space: activate whatever the cursor is on.
   function activateCursor() {
+    if (focusSection === "header") { toggleAllMuted(); return }
     if (focusSection === "output") {
       if (selectedIndex === -1) { toggleOutputMute(); return }
       var sink = displayAudioSinks[selectedIndex]
@@ -320,6 +382,10 @@ Panel {
   function clampCursor() {
     var sections = visibleSections
     if (!sections || !sections.length) return
+    // "header" is virtual and never appears in visibleSections, so it has to
+    // be let through: muting republishes the PipeWire snapshot, and clamping
+    // would knock the cursor off the hero switch on every toggle.
+    if (focusSection === "header") return
     if (sections.indexOf(focusSection) < 0) {
       focusSection = visibleSections[0]
       selectedIndex = sectionHasSlider(focusSection) ? -1 : 0
@@ -332,17 +398,18 @@ Panel {
     if (selectedIndex < floor) selectedIndex = floor
   }
 
-  function outputIcon() {
-    // Match the old Waybar pulseaudio glyph set. The Material Design speaker
-    // icons render visually smaller in JetBrainsMono Nerd Font.
-    if (!sink || !sink.audio) return ""
+  function outputIcon(volume) {
+    // Material Design volume ladder, matching the neighbouring MD bar icons
+    // (bluetooth/network/monitor/power). The Font Awesome glyphs this replaced
+    // rendered undersized on aarch64/JetBrainsMono Nerd Font.
+    if (!sink || !sink.audio) return "󰖁"
     if (isHeadphones(sink)) return "󰋋"
-    if (outputMuted) return ""
-    var v = outputVolume
-    if (v >= 0.67) return ""
-    if (v >= 0.34) return ""
-    if (v > 0) return ""
-    return ""
+    if (outputMuted) return "󰖁"
+    var v = volume === undefined ? outputVolume : volume
+    if (v >= 0.67) return "󰕾"
+    if (v >= 0.34) return "󰖀"
+    if (v > 0) return "󰕿"
+    return "󰖁"
   }
 
   function inputIcon() {
@@ -358,8 +425,18 @@ Panel {
   }
 
   function setOutputVolume(v) {
-    if (!sink || !sink.audio) return
-    sink.audio.volume = Math.max(0, Math.min(1, v))
+    if (!volumeSink || !volumeSink.audio) return outputVolume
+    var volume = Math.max(0, Math.min(1, v))
+    volumeSink.audio.volume = volume
+    return volume
+  }
+
+  function showVolumeOsd(volume) {
+    if (!bar || !bar.shell) return
+    bar.shell.summon("omarchy.osd", JSON.stringify({
+      icon: outputIcon(volume),
+      value: Math.round(volume * 100)
+    }))
   }
 
   function setInputVolume(v) {
@@ -368,11 +445,20 @@ Panel {
   }
 
   function toggleOutputMute() {
-    if (sink && sink.audio) sink.audio.muted = !sink.audio.muted
+    if (volumeSink && volumeSink.audio) volumeSink.audio.muted = !volumeSink.audio.muted
   }
 
   function toggleInputMute() {
     if (source && source.audio) source.audio.muted = !source.audio.muted
+  }
+
+  // The hero switch is the whole panel's on/off, so it carries both channels
+  // at once. It reads as on while anything is still audible, which keeps
+  // muting a single channel from the row below flipping the master switch.
+  function toggleAllMuted() {
+    var mute = anyAudible
+    if (hasOutput) volumeSink.audio.muted = mute
+    if (hasInput) source.audio.muted = mute
   }
 
   function setDefaultSink(node) {
@@ -507,12 +593,32 @@ Panel {
     }
   }
 
+  Process {
+    id: volumeSinkProc
+    command: ["omarchy-audio-output-sink"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.volumeSinkName = String(text).trim()
+    }
+  }
+
   Timer {
     interval: 5000
     running: root.opened
     repeat: true
     triggeredOnStart: true
     onTriggered: if (!sinkAvailabilityProc.running) sinkAvailabilityProc.running = true
+  }
+
+  // Runs whether or not the panel is open: the bar shows and scrolls the output
+  // volume too, so an unresolved sink there would read and change the virtual
+  // tuning sink instead of the speakers.
+  Timer {
+    interval: 15000
+    running: true
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.resolveVolumeSink()
   }
 
   Timer {
@@ -528,13 +634,17 @@ Panel {
     bar: root.bar
     text: root.outputIcon()
     onPressed: function(b) {
-      if (b === Qt.RightButton) root.toggleOutputMute()
+      if (b === Qt.RightButton) root.toggleAllMuted()
       else root.toggle()
     }
 
     onWheelMoved: function(delta) {
-      var step = 0.05
-      root.setOutputVolume(root.outputVolume + (delta > 0 ? step : -step))
+      if (!root.hasOutput) return
+      var wheel = Util.wheelSteps(root.wheelAccumulator, delta)
+      root.wheelAccumulator = wheel.remainder
+      if (wheel.steps === 0) return
+      var volume = root.setOutputVolume(root.outputVolume + wheel.steps * 0.05)
+      root.showVolumeOsd(volume)
     }
   }
 
@@ -597,8 +707,9 @@ Panel {
           Item {
             id: heroItem
             width: parent.width
-            implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight)
+            implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight, powerSwitch.implicitHeight)
 
+            // Status only — the switch owns muting, mouse and keyboard alike.
             Text {
               id: heroIcon
               text: root.outputIcon()
@@ -608,11 +719,25 @@ Panel {
               opacity: root.outputMuted ? 0.5 : 1.0
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
+            }
 
-              MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.toggleOutputMute()
+            // Compact on/off switch on the trailing edge of the hero, and the
+            // header's only cursor target. Checked means something is still
+            // audible, so muting everything reads as switching audio off.
+            ToggleSwitch {
+              id: powerSwitch
+              checked: root.anyAudible
+              hasCursor: root.headerHasCursor
+              foreground: root.bar.foreground
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              onHovered: function(on) { if (on) root.setHeaderCursor() }
+              onToggled: root.toggleAllMuted()
+
+              PanelToolTip {
+                visible: powerSwitch.containsMouse
+                text: root.toggleHint
+                fontFamily: root.bar.fontFamily
               }
             }
 
@@ -621,6 +746,7 @@ Panel {
               anchors.left: heroIcon.right
               anchors.leftMargin: Style.space(14)
               anchors.right: parent.right
+              anchors.rightMargin: powerSwitch.width + Style.space(12)
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.space(2)
 
@@ -710,6 +836,7 @@ Panel {
                 enabled: !!root.sink
 
                 onMoved: function(v) { root.setOutputVolume(v) }
+                onRightClicked: root.toggleOutputMute()
               }
 
               HoverHandler {
@@ -801,6 +928,7 @@ Panel {
                   enabled: !!root.source
 
                   onMoved: function(v) { root.setInputVolume(v) }
+                  onRightClicked: root.toggleInputMute()
                 }
 
                 Rectangle {
@@ -1087,6 +1215,10 @@ Panel {
 
         onMoved: function(v) {
           if (streamRow.node && streamRow.node.audio) streamRow.node.audio.volume = v
+        }
+        onRightClicked: {
+          if (streamRow.node && streamRow.node.audio)
+            streamRow.node.audio.muted = !streamRow.node.audio.muted
         }
       }
     }

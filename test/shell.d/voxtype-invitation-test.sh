@@ -18,15 +18,22 @@ mkdir -p "$(dirname "$hook_path")"
 cat >"$test_bin/omarchy-notification-send" <<'EOF'
 #!/bin/bash
 echo notification >>"$TEST_LOG"
-echo action
+exec_args=()
+while (($# > 0)); do
+  if [[ $1 == "--exec" ]]; then shift; exec_args=("$@"); break; fi
+  shift
+done
+((${#exec_args[@]})) && echo "exec:${exec_args[*]}" >>"$TEST_LOG"
 EOF
 chmod +x "$test_bin/omarchy-notification-send"
 
-cat >"$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'EOF'
+# The shell runs the click command, so the invitation must not need a unit of its
+# own to keep a blocked sender alive until the toast is answered.
+cat >"$test_bin/systemd-run" <<'EOF'
 #!/bin/bash
-echo launch >>"$TEST_LOG"
+echo "systemd-run:$*" >>"$TEST_LOG"
 EOF
-chmod +x "$test_bin/omarchy-launch-floating-terminal-with-presentation"
+chmod +x "$test_bin/systemd-run"
 
 run_invitation_hook() {
   cp "$ROOT/install/user/first-run/install-voxtype.hook" "$hook_path"
@@ -35,21 +42,16 @@ run_invitation_hook() {
 
 run_invitation_hook
 
-for _ in {1..50}; do
-  [[ $(wc -l <"$log_file") -eq 2 ]] && break
-  sleep 0.02
-done
-
 [[ -f $test_home/.local/state/omarchy/done/voxtype-install-invitation ]] || fail "Voxtype invitation records completion"
 [[ -f $hook_path ]] || fail "Voxtype invitation keeps its hook installed"
 [[ $(grep -c '^notification$' "$log_file") -eq 1 ]] || fail "Voxtype invitation sends one notification"
-[[ $(grep -c '^launch$' "$log_file") -eq 1 ]] || fail "Voxtype invitation handles the notification action"
+grep -qx 'exec:omarchy-launch-floating-terminal-with-presentation omarchy-voxtype-install' "$log_file" ||
+  fail "Voxtype invitation attaches the installer to the notification"
+grep -q '^systemd-run:' "$log_file" && fail "Voxtype invitation needs no unit to hold an unanswered toast"
 
 HOME="$test_home" PATH="$test_bin:$ROOT/bin:$PATH" TEST_LOG="$log_file" bash "$hook_path"
-sleep 0.05
 
 [[ -f $hook_path ]] || fail "completed Voxtype invitation keeps its hook installed"
 [[ $(grep -c '^notification$' "$log_file") -eq 1 ]] || fail "completed Voxtype invitation hook does not notify again"
-[[ $(grep -c '^launch$' "$log_file") -eq 1 ]] || fail "completed Voxtype invitation hook does not launch again"
 
 pass "Voxtype invitation only runs once"

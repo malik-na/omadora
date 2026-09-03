@@ -92,7 +92,8 @@ jobs:
         if: steps.list_scripts.outputs.count != '0'
         run: |
           # Show diffs but don't fail the build on formatting; exclude migrations/
-          shfmt -v -i 2 -ci -d $(git ls-files | grep -E '\.sh$|^scripts/.*' | grep -v '^migrations/') || true
+          mapfile -t files < <(git ls-files | grep -E '\.sh$|^scripts/.*' | grep -v '^migrations/')
+          shfmt -i 2 -ci -d "${files[@]}" || true
 
   # 2) Syntax + smoke tests (safe, non-privileged)
   smoke:
@@ -127,7 +128,6 @@ jobs:
       - name: Smoke run selected scripts in DRY_RUN/--help mode
         env:
           DRY_RUN: "1"
-          # Add any other env your scripts respect to avoid destructive actions
         run: |
           ./tests/run-fedora-asahi-phase3-1.sh --ci
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=Install Xbox controller support
 
 # Xbox Controller Support for Omarchy
 # Note: This script is designed for x86_64 systems with Xbox controller hardware.
