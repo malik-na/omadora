@@ -11,9 +11,19 @@ omarchy-update-time
 # Suppress Hyprland config errors while git updates default config files mid-pull
 hyprctl keyword debug:suppress_errors true &>/dev/null || true
 
-git -C $OMARCHY_PATH fetch --tags
-git -C $OMARCHY_PATH pull --autostash
-git -C $OMARCHY_PATH --no-pager diff --check || git -C $OMARCHY_PATH reset --merge
+# Fetch only from the branch's configured remote (usually origin). Checkouts that
+# also track omarchy-mac as `upstream` can carry same-named release tags at
+# different SHAs; a plain `git fetch --tags` then refuses to move them
+# ("would clobber existing tag") and aborts the update under set -e.
+branch=$(git -C "$OMARCHY_PATH" rev-parse --abbrev-ref HEAD)
+remote=$(git -C "$OMARCHY_PATH" config --get "branch.${branch}.remote" 2>/dev/null || true)
+remote=${remote:-origin}
+
+git -C "$OMARCHY_PATH" fetch "$remote" --prune
+# --force updates colliding tags to match this remote's releases.
+git -C "$OMARCHY_PATH" fetch "$remote" --tags --force
+git -C "$OMARCHY_PATH" pull --autostash
+git -C "$OMARCHY_PATH" --no-pager diff --check || git -C "$OMARCHY_PATH" reset --merge
 
 hyprctl reload &>/dev/null || true
 
