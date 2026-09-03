@@ -182,6 +182,7 @@ omarchy-finalize-user --first-install </dev/null >>"$OMARCHY_INSTALL_LOG_FILE" 2
 
 # --- Login (SDDM + initramfs) ------------------------------------------------
 run_user "$OMARCHY_INSTALL/login/plymouth.sh"
+run_user "$OMARCHY_INSTALL/config/grub-theme.sh"
 run_user "$OMARCHY_INSTALL/login/sddm.sh"
 run_user "$OMARCHY_INSTALL/login/dracut.sh"
 
