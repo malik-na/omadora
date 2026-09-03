@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=Print the configured update channel/branch
 
 STATE_FILE="$HOME/.local/state/omarchy/channel"
 

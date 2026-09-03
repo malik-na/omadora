@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=Install packages with dnf
 
 OMARCHY_INSTALL=${OMARCHY_INSTALL:-"$HOME/.local/share/omarchy/install"}
 source "$OMARCHY_INSTALL/helpers/packages.sh"

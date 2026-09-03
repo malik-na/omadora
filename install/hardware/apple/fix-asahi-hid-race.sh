@@ -20,9 +20,10 @@ if [[ $(uname -m) == "aarch64" ]] && grep -qi apple /proc/device-tree/compatible
   done
 
   if ((${#modules[@]} > 0)); then
-    sudo mkdir -p /etc/dracut.conf.d
+    conf="${OMARCHY_APPLE_HID_CONF:-/etc/dracut.conf.d/omarchy-apple-hid.conf}"
+    sudo mkdir -p "$(dirname "$conf")"
     # force_drivers pulls these into the initramfs so they bind before hid-generic.
     # Rebuild with `dracut -f` (or the next kernel install) for the change to take effect.
-    printf 'force_drivers+=" %s "\n' "${modules[*]}" | sudo tee /etc/dracut.conf.d/omarchy-apple-hid.conf >/dev/null
+    printf 'force_drivers+=" %s "\n' "${modules[*]}" | sudo tee "$conf" >/dev/null
   fi
 fi

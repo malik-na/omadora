@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=No-op pacman mirrorlist refresh on Fedora
 
 echo "omarchy-refresh-pacman-mirrorlist is not used on Fedora Asahi."
 exit 0

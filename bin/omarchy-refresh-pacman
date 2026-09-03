@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=No-op pacman refresh on Fedora (dnf manages repos)
 
 echo "omarchy-refresh-pacman is deprecated on Fedora Asahi and has no effect."
 exit 0

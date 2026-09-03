@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=Diagnose keyboard backlight controls
 
 echo "Listening for keyboard events..."
 echo "Press the keyboard brightness up/down keys (F5/F6 area)"

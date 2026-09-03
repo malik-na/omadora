@@ -94,7 +94,8 @@ run_audio_setup() {
 : >"$calls"
 run_audio_setup "$leaf" aarch64 apple,j413
 
-expected_call=$'omarchy-pkg-add\trtkit\tpipewire-pulse\tpipewire-alsa\tasahi-audio\tspeakersafetyd'
+# Fedora packages PipeWire's Pulse server as pipewire-pulseaudio (Arch: pipewire-pulse).
+expected_call=$'omarchy-pkg-add\trtkit\tpipewire-pulseaudio\tpipewire-alsa\tasahi-audio\tspeakersafetyd'
 grep -Fxq "$expected_call" "$calls" ||
   fail "fresh Apple Silicon installs get the complete protected audio stack" "$(cat "$calls")"
 pass "fresh Apple Silicon installs get the complete protected audio stack"

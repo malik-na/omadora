@@ -1,4 +1,5 @@
 #!/bin/bash
+# omarchy:summary=Verify shebang consistency in Omarchy scripts
 
 set -euo pipefail
 
