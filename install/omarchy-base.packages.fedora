@@ -1,39 +1,72 @@
-# Fedora package list for Omarchy
+# Fedora package list for Omarchy quattro
 # Format: one package name per line
+#
+# Everything resolves from the official Fedora 44 aarch64 repos unless noted. The Hyprland stack
+# comes from the lionheartp/Hyprland COPR (the Asahi-safe builds, enabled by
+# install/helpers/fedora-copr.sh with priority=10 so dnf prefers it for those packages).
+# First-party quattro tools (aether, cliamp, omacut, omawrite, tensaku, tobi-try) ship as Arch
+# packages upstream and have no Fedora build - they are installed outside dnf when available
+# (see install/helpers/fedora-manual.sh).
 
-# Desktop
-hyprland
+# Desktop - Hyprland stack (lionheartp COPR)
+# The compositor itself is not listed here: install/helpers/fedora-hyprland.sh picks between the
+# stable `hyprland` package and `hyprland-git`, because the COPR's stable build periodically stops
+# resolving while it waits to be rebuilt against new hyprutils/aquamarine sonames.
 hyprland-qt-support
-hypridle
-hyprlock
-hyprsunset
 hyprland-guiutils
-waybar
-mako
-swayosd
-swaybg
-slurp
-grim
-wf-recorder
-wl-clipboard
-satty
+hyprsunset
+hyprpicker
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
+uwsm
+
+# Desktop - the Quickshell shell (bar/launcher/notifications/OSD/lock in one program).
+# quickshell is an official Fedora 44 aarch64 package - no COPR needed.
+quickshell
+
+# Desktop - capture. Upstream quattro records with gpu-screen-recorder alone, but that binary
+# dispatches on the GPU vendor string and rejects Apple Silicon outright: on Asahi both its kms and
+# its portal backend fail with "unknown gpu vendor: Mesa" / "failed to load opengl", so no recording
+# ever started. wf-recorder goes through wlr-screencopy instead of vendor-specific GL, the same
+# wlroots path grim already uses successfully here, so it is what actually records on this hardware.
+# gpu-screen-recorder stays installed and is still preferred where it works.
+gpu-screen-recorder
+wf-recorder
+grim
+slurp
+
+# Desktop - misc
+wl-clipboard
+wtype
 xdg-user-dirs
 qt5-qtwayland
+qt6-qtwayland
+mesa-vulkan-drivers
 chromium
 yaru-icon-theme
-yaru-gtk2-theme
 yaru-gtk3-theme
 yaru-gtk4-theme
 yaru-gtksourceview-theme
+# First-party tools (aether, cliamp, omacut, omawrite, tensaku, voxtype, tobi-try,
+# hyprland-preview-share-picker) ship no Fedora/COPR aarch64 package. They are installed from upstream
+# release binaries or source builds by install/helpers/fedora-first-party.sh; their runtime libraries
+# are listed further down under "First-party tool runtime deps".
+# Retired by quattro and deliberately absent: waybar, walker, elephant, mako, swayosd, swaybg,
+# hypridle, hyprlock, wayfreeze, satty, pavucontrol, playerctl, wf-recorder, impala, bluetui.
+# The polkit agent is now the shell's own dialog, so lxpolkit is gone too.
+# kvantum is not installed on Fedora (fork decision); the QT_STYLE_OVERRIDE handling is adjusted
+# in the Hyprland env config instead.
 
-# Terminal
+# Terminals
 xdg-terminal-exec
 alacritty
+foot
+
+# Shell & CLI tools
 starship
 eza
 btop
+htop
 fzf
 ripgrep
 bat
@@ -41,18 +74,45 @@ fd-find
 zoxide
 fastfetch
 jq
-htop
+# omarchy-menu-keybindings resolves XKB keycodes with xkbcli (libxkbcommon-utils) and decodes the
+# Hyprland bind list with Perl's JSON::PP; without them SUPER + K shows nothing.
+libxkbcommon-utils
+perl-JSON-PP
 tmux
+gum
+less
+man-db
+tldr
+plocate
+socat
+inotify-tools
+inxi
+dua-cli
+whois
+unzip
+util-linux-script
+yt-dlp
 
 # Development
 neovim
 git
+gh
 cargo
+rust
 clang
 llvm
-java-21-openjdk
 luarocks
-gh
+compat-lua
+compat-lua-libs
+tree-sitter-cli
+ruby
+libyaml
+python3-gobject
+python3-poetry-core
+libpq
+mariadb-connector-c
+java-latest-openjdk
+dotnet-runtime-9.0
 
 # Containers
 moby-engine
@@ -63,54 +123,112 @@ docker-buildx
 imv
 chafa
 mpv
-pinta
-libreoffice
-kdenlive
+mpv-mpris
 evince
+kdenlive
+obs-studio
+pinta
+xournalpp
+libreoffice
 nautilus
 nautilus-python
+sushi
 gnome-calculator
+gnome-disk-utility
+ffmpegthumbnailer
+ImageMagick
+tesseract
+tesseract-langpack-eng
+gvfs-mtp
+gvfs-nfs
+gvfs-smb
+udiskie
 
-# System Utilities
-playerctl
+# System
 brightnessctl
 pamixer
-pavucontrol
-gum
+alsa-utils
+wireplumber
+# The shell's own panels drive audio and bluetooth through CLIs rather than a TUI: the audio panel
+# calls wpctl (wireplumber) and pactl, and the bluetooth panel calls bluetoothctl. pactl needs
+# pulseaudio-utils plus the pipewire-pulse server to talk to, and both were only ever present as
+# weak dependencies - without pactl, switching output silently fails to move playing streams.
+pulseaudio-utils
+pipewire-pulseaudio
+bluez
+# bt-agent (bluez-tools) is the pairing agent default/systemd/user/bt-agent.service starts. Without
+# it the unit fails with status=203/EXEC and, because it restarts on failure, buries the session in
+# "failed unit detected" notifications until the shell falls over.
+bluez-tools
 plymouth
 cups
-util-linux-script
-libqalculate
-qalculate
-plocate
-snapper
-btrfs-assistant
-python3-dnf-plugin-snapper
-inotify-tools
-ImageMagick
+cups-browsed
+cups-filters
+cups-pdf
+system-config-printer
+nss-mdns
+avahi
+bolt
+power-profiles-daemon
 firewalld
 python3-pip
 flatpak
-power-profiles-daemon
+NetworkManager
 NetworkManager-tui
 nm-connection-editor
-blueman
+snapper
+btrfs-assistant
+python3-dnf-plugin-snapper
+dosfstools
+exfatprogs
+wireless-regdb
+libsecret
+gnome-keyring
 
 # Display Manager
 sddm
-libsecret
-gnome-keyring
-lxpolkit
 
 # Fonts
+# quattro's woff2-font-awesome maps to Fedora's fontawesome4-fonts + fontawesome-fonts-web.
+# The JetBrainsMono Nerd Font the shell and terminals use has no Fedora package - it is installed
+# from the nerd-fonts release by install/helpers/fedora-manual.sh. gnome-themes-extra was retired
+# in Fedora 44 (the Yaru packages above cover GTK theming).
 google-noto-fonts-common
+google-noto-sans-fonts
 google-noto-sans-cjk-fonts
 google-noto-emoji-fonts
 google-noto-color-emoji-fonts
-cascadia-mono-nf-fonts
 jetbrains-mono-fonts
+cascadia-mono-nf-fonts
+fontawesome4-fonts
+fontawesome-fonts-web
+# ter-v16n, the console font install/config/console-font.sh sets on the TTY.
+terminus-fonts-console
 
 # Input Methods
 fcitx5
 fcitx5-gtk
 fcitx5-qt5
+fcitx5-qt6
+
+# First-party tool runtime deps
+# Shared libraries the first-party tools link against. The tools themselves are installed from
+# upstream release binaries / source builds by install/helpers/fedora-first-party.sh, but their
+# runtime dependencies are ordinary Fedora packages and belong here so dnf resolves them up front.
+# (wtype, wl-clipboard and slurp - also first-party runtime deps - are already listed above.)
+webkit2gtk4.1
+gtk3
+gtk-layer-shell
+gstreamer1
+gstreamer1-plugins-good
+ffmpeg-free
+alsa-lib
+qt6-qtbase
+qt6-qtdeclarative
+qt6-qtmultimedia
+hicolor-icon-theme
+libadwaita
+libepoxy
+fontconfig
+gtk4
+xdg-desktop-portal

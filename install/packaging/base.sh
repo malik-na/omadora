@@ -1,6 +1,7 @@
 #!/bin/bash
+# Install the base package set from omarchy-base.packages.fedora. Runs as the
+# user; dnf is invoked through the package helpers, which sudo internally.
 source "$OMARCHY_INSTALL/helpers/packages.sh"
-
 
 package_file="$OMARCHY_INSTALL/omarchy-base.packages.fedora"
 
@@ -20,37 +21,23 @@ while IFS= read -r line; do
   fi
 done <"$package_file"
 
-# Interactive selection for optional packages using gum
-if command -v gum &>/dev/null && ((${#optional_packages[@]} > 0)); then
-  echo "\e[34m[Omarchy] Select optional packages to install (use space to select, enter to confirm):\e[0m"
+# Let the user pick from the optional packages when gum and a TTY are available;
+# otherwise take them all (unattended / curl installs).
+if command -v gum &>/dev/null && ((${#optional_packages[@]} > 0)) && [[ -t 0 ]]; then
+  echo -e "\e[34m[Omarchy] Select optional packages (space to toggle, enter to confirm):\e[0m"
   selected_optional=$(printf '%s\n' "${optional_packages[@]}" | gum choose --no-limit --height 20)
   mapfile -t selected_optional_pkgs <<<"$selected_optional"
 else
   selected_optional_pkgs=("${optional_packages[@]}")
 fi
 
-# Combine core and selected optional packages
 packages=("${core_packages[@]}" "${selected_optional_pkgs[@]}")
 
-# Pre-Install Compatibility Check
-echo "\e[34m[Omarchy] Checking package availability...\e[0m"
-unavailable_pkgs=()
-for pkg in "${packages[@]}"; do
-  if ! fedora_package_installed "$pkg" && ! dnf list --available "$pkg" &>/dev/null; then
-    unavailable_pkgs+=("$pkg")
-  fi
-done
-if ((${#unavailable_pkgs[@]} > 0)); then
-  echo "\e[33m[Warning] The following packages were not found in Fedora repositories and may fail to install:\e[0m"
-  for pkg in "${unavailable_pkgs[@]}"; do
-    echo "  - $pkg"
-  done
-  echo
-fi
-
-# Install all base packages, skipping unavailable ones and listing failures at the end
+# Install each package, skipping ones already present and collecting failures so
+# a single missing package never aborts the whole base install.
 failed_packages=()
 for pkg in "${packages[@]}"; do
+  [[ -z "$pkg" ]] && continue
   if omarchy_package_installed "$pkg"; then
     echo "[SKIPPED] $pkg (already installed)"
     continue
@@ -68,19 +55,14 @@ for pkg in "${packages[@]}"; do
   fi
 done
 
-# Post-install summary and support
 echo
 if ((${#failed_packages[@]} > 0)); then
   echo "==============================="
-  echo "The following packages could not be installed:"
+  echo "The following base packages could not be installed:"
   for pkg in "${failed_packages[@]}"; do
     echo "  - $pkg"
   done
   echo "==============================="
-  echo "If you need help or want to request support for missing packages, contact @tiredkebab on X (Twitter)."
 else
-  echo "\e[32mAll packages installed successfully!\e[0m"
+  echo -e "\e[32mAll base packages installed successfully!\e[0m"
 fi
-
-echo
-echo "[Omarchy] Installation complete. For troubleshooting, see the install log. For support, contact @tiredkebab on X (Twitter)."

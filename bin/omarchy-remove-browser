@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# omarchy:summary=Remove a supported browser and clean up Omarchy browser defaults
+# omarchy:args=<brave|brave-origin|firefox|zen>
+# omarchy:examples=omarchy remove browser firefox | omarchy remove browser brave
+# omarchy:requires-sudo=true
+
+set_fallback_default_browser() {
+  local current_browser
+  current_browser=$(xdg-settings get default-web-browser)
+
+  if [[ $current_browser != $1 ]]; then
+    return
+  fi
+
+  if omarchy-cmd-present chromium; then
+    xdg-settings set default-web-browser chromium.desktop
+    xdg-mime default chromium.desktop x-scheme-handler/http
+    xdg-mime default chromium.desktop x-scheme-handler/https
+    xdg-mime default chromium.desktop text/html
+  fi
+}
+
+case $1 in
+brave)
+  echo "Removing Brave..."
+  set_fallback_default_browser brave-browser.desktop
+  omarchy-pkg-drop brave-browser
+  rm -f ~/.config/brave-flags.conf
+
+  if omarchy-pkg-missing brave-origin; then
+    sudo rm -rf /etc/brave
+  fi
+  ;;
+brave-origin)
+  echo "Removing Brave Origin..."
+  set_fallback_default_browser brave-origin.desktop
+  omarchy-pkg-drop brave-origin
+  rm -f ~/.config/brave-origin-flags.conf
+
+  if omarchy-pkg-missing brave-browser; then
+    sudo rm -rf /etc/brave
+  fi
+  ;;
+firefox)
+  echo "Removing Firefox..."
+  set_fallback_default_browser firefox.desktop
+  omarchy-pkg-drop firefox
+  ;;
+zen)
+  echo "Removing Zen..."
+  set_fallback_default_browser zen.desktop
+  # Zen is unpacked into /opt rather than installed as a package, so there is nothing for dnf to drop.
+  sudo rm -rf /opt/zen
+  sudo rm -f /usr/local/bin/zen /usr/share/applications/zen.desktop
+  ;;
+*)
+  echo "Usage: omarchy-remove-browser <brave|brave-origin|firefox|zen>"
+  exit 1
+  ;;
+esac

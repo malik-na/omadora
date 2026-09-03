@@ -1,39 +1,38 @@
 #!/bin/bash
 
-# Soft abort: warn, but allow user to continue or skip with a clear message
-abort() {
-  echo -e "\e[31m[Omarchy] Requirement not met: $1\e[0m"
-  echo
-  gum confirm "Proceed anyway? (Not recommended. You may encounter issues and support may not be available.)" || {
-    echo -e "\e[33m[Omarchy] Installation aborted. Please review the requirement above.\e[0m"
-    echo -e "For help, contact @tiredkebab on X (Twitter)."
-    exit 1
-  }
-  echo -e "\e[33m[Omarchy] Continuing at your own risk...\e[0m"
-}
+# Fedora-Asahi requirement gate for the git-clone install. Runs as the target
+# user before anything is installed or changed, so a machine that fails a check
+# is left exactly as it was.
 
-
-# Distro detection abstraction
 source "${OMARCHY_INSTALL:-$HOME/.local/share/omarchy/install}/helpers/distro.sh"
 
-if ! is_fedora; then
-  abort "Unsupported distro (Fedora Asahi Remix required)"
+fail() {
+  echo -e "\e[31m[Omarchy] Requirement not met: $1\e[0m" >&2
+  exit 1
+}
+
+# Fedora Asahi Remix only.
+is_fedora || fail "Unsupported distro (Fedora Asahi Remix required)"
+
+# Fedora 44+ is a hard stop, not a soft warning: half-installing quattro on an
+# older release would leave the machine broken. Bail before any change and print
+# the upgrade steps (we never upgrade Fedora for the user).
+if ! is_fedora_supported_version; then
+  fedora_upgrade_instructions
+  exit 1
 fi
 
-ARCH="$(uname -m)"
-if [[ "$ARCH" != "aarch64" ]]; then
-  abort "Fedora Asahi Remix requires ARM64 (aarch64) hardware. Detected: $ARCH"
+# aarch64 (Apple Silicon) only. The fork drops every x86 hardware path.
+arch="$(uname -m)"
+[[ "$arch" == "aarch64" ]] || fail "Fedora Asahi Remix requires aarch64 hardware. Detected: $arch"
+
+# Asahi kernel.
+is_fedora_asahi || fail "Fedora Asahi kernel not detected"
+
+# install.sh escalates with sudo where it needs to; running the whole thing as
+# root would seed configs into root's home instead of the user's.
+if ((EUID == 0)); then
+  fail "Run the installer as your regular user, not root (it uses sudo when needed)"
 fi
 
-if ! grep -q "asahi" /proc/version 2>/dev/null; then
-  abort "Fedora Asahi Remix required (not detected)"
-fi
-
-# Must not be running as root
-if [ "$EUID" -eq 0 ]; then
-  abort "Running as root (run as a regular user, not root)"
-fi
-
-
-# Cleared all guards
 echo "Guards: OK"

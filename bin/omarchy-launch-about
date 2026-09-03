@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# omarchy:summary=Launch the fastfetch TUI that gives information about the current system.
 # Launch the fastfetch view in a floating terminal window.
 
 exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=About -e bash -lc 'fastfetch; read -n 1 -s'

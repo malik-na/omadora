@@ -1,17 +1,20 @@
 #!/bin/bash
 
-# Set the branch for Omarchy's git repository.
+# omarchy:summary=Switch Omarchy's git checkout to a branch
+# omarchy:args=<branch>
 
 if (($# == 0)); then
-  echo "Usage: omarchy-branch-set [fedora|main|dev]"
+  echo "Usage: omarchy-branch-set <branch>"
   exit 1
-else
-  branch="$1"
 fi
 
-case "$branch" in
-  "fedora") git -C $OMARCHY_PATH switch fedora ;;
-  "main") git -C $OMARCHY_PATH switch main ;;
-  "dev") git -C $OMARCHY_PATH switch dev ;;
-  *) echo "Unknown branch: $branch"; exit 1; ;;
-esac
+branch="$1"
+
+if git -C "$OMARCHY_PATH" show-ref --verify --quiet "refs/heads/$branch"; then
+  git -C "$OMARCHY_PATH" switch "$branch"
+elif git -C "$OMARCHY_PATH" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+  git -C "$OMARCHY_PATH" switch -c "$branch" --track "origin/$branch"
+else
+  echo "Unknown branch: $branch"
+  exit 1
+fi

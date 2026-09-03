@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# omarchy:summary=Remove Voxtype dictation and its configuration
+# omarchy:requires-sudo=true
+
 set -e
 
 # Remove voxtype and its configurations.
@@ -7,14 +11,18 @@ if omarchy-cmd-present voxtype; then
   echo "Uninstall Voxtype to remove dictation."
 
   # Remove services
-  systemctl --user stop voxtype.service 2>/dev/null || true
-  rm -f ~/.config/systemd/user/voxtype*
+  systemctl --user disable --now voxtype.service 2>/dev/null || true
   systemctl --user daemon-reload
 
-  # Remove packages and configs
-  omarchy-pkg-drop wtype voxtype-bin
+  # Remove the binary and configs. voxtype is not a package here: upstream's voxtype-bin is an AUR
+  # package, and omarchy-pkg-drop only ever skipped it, so the binary survived a "remove". The
+  # install-time stamp goes too, otherwise fedora-first-party.sh would consider voxtype current and
+  # never reinstall it.
+  sudo rm -f /usr/local/bin/voxtype
+  rm -f ~/.local/state/omarchy/first-party/voxtype
   rm -rf ~/.config/voxtype
   rm -rf ~/.local/share/voxtype
+  omarchy-hyprland-toggle voxtype off
 else
   echo "Voxtype was not installed."
 fi

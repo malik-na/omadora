@@ -32,7 +32,6 @@ jobs:
             index.html
             install.sh
             boot.sh
-            bootstrap.sh
             bin
             config
             default

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# omarchy:summary=Launch a URL as a web app in the default supported browser
+# omarchy:args=<url>
 if (($# == 0)); then
   echo "Usage: omarchy-launch-webapp <url> [args...]"
   exit 1

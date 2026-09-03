@@ -1,4 +1,0 @@
-#!/bin/bash
-
-echo "AUR is unavailable on Fedora. Installing packages from Fedora repositories instead."
-omarchy-pkg-install "$@"

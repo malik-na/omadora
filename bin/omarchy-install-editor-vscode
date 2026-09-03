@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# omarchy:summary=Install VS Code and configure Omarchy defaults for secrets, updates, and theme
+
+echo "Installing VSCode..."
+
+# Upstream installs the AUR's visual-studio-code-bin. Microsoft publishes an aarch64 rpm in its own
+# signed repository, which is where the `code` package comes from here.
+sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+cat <<EOF | sudo tee /etc/yum.repos.d/vscode.repo >/dev/null
+[code]
+name=Visual Studio Code
+baseurl=https://packages.microsoft.com/yumrepos/vscode
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+
+omarchy-pkg-add code
+
+mkdir -p ~/.vscode ~/.config/Code/User
+
+cat > ~/.vscode/argv.json << 'EOF'
+// This configuration file allows you to pass permanent command line arguments to VS Code.
+// Only a subset of arguments is currently supported to reduce the likelihood of breaking
+// the installation.
+//
+// PLEASE DO NOT CHANGE WITHOUT UNDERSTANDING THE IMPACT
+//
+// NOTE: Changing this file requires a restart of VS Code.
+{
+  "password-store":"gnome-libsecret"
+}
+EOF
+
+# Ensure VSC's own auto-update feature is turned off
+printf '{\n  "update.mode": "none"\n}\n' > ~/.config/Code/User/settings.json
+
+# Apply Omarchy theme to VSCode
+omarchy-theme-set-vscode
+
+setsid gtk-launch code

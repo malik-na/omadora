@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# omarchy:summary=Switch between audio outputs while preserving the mute status
+
+sinks=$(timeout 2 pactl -f json list sinks | jq '[.[] | select((.ports | length == 0) or ([.ports[]? | .availability != "not available"] | any))]')
+sinks_count=$(jq 'length' <<<"$sinks")
+
+if (( sinks_count == 0 )); then
+  omarchy-osd -m "No audio devices found"
+  exit 1
+fi
+
+current_sink_name=$(timeout 2 pactl get-default-sink)
+current_sink_index=$(jq -r --arg name "$current_sink_name" 'map(.name) | index($name)' <<<"$sinks")
+
+if [[ $current_sink_index != "null" ]]; then
+  next_sink_index=$(((current_sink_index + 1) % sinks_count))
+else
+  next_sink_index=0
+fi
+
+next_sink=$(jq -c ".[$next_sink_index]" <<<"$sinks")
+next_sink_name=$(jq -r '.name' <<<"$next_sink")
+next_sink_description=$(jq -r '.description // .properties."device.description" // .name' <<<"$next_sink")
+next_sink_volume=$(jq -r '.volume | to_entries[0].value.value_percent | sub("%"; "") | tonumber' <<<"$next_sink")
+next_sink_is_muted=$(jq -r '.mute' <<<"$next_sink")
+
+if [[ $next_sink_is_muted == "true" ]] || (( next_sink_volume == 0 )); then
+  icon_state="muted"
+elif (( next_sink_volume <= 33 )); then
+  icon_state="low"
+elif (( next_sink_volume <= 66 )); then
+  icon_state="medium"
+else
+  icon_state="high"
+fi
+
+if [[ $next_sink_name != $current_sink_name ]]; then
+  omarchy-audio-output-set-default "$(jq -r '.index' <<<"$next_sink")" "$next_sink_name"
+fi
+
+omarchy-osd -i "volume-${icon_state}" -m "$next_sink_description"

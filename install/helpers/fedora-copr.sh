@@ -9,19 +9,22 @@ if ! is_fedora; then
   exit 0
 fi
 
-# List of required COPR repos (from Research.md)
+# Required COPR repos: the install cannot proceed without these.
+# lionheartp/Hyprland is the single source for the whole Hyprland stack (hyprland, uwsm,
+# hyprland-guiutils, gpu-screen-recorder, portal) - it is the Asahi-safe build and is rebuilt
+# continuously. quickshell itself comes from the official Fedora repos, not a COPR.
 COPR_REPOS=(
-  "technochip/Hyprland-aarch64"
+  "lionheartp/Hyprland"
   "atim/starship"
   "atim/lazygit"
-  "pgdev/ghostty"
 )
 
 # Optional COPR repos (may not be available for all Fedora versions)
+# scottames/ghostty is only needed by `omarchy-install-terminal ghostty`; the default
+# terminal is alacritty, so a missing ghostty must never fail the install.
 OPTIONAL_COPR_REPOS=(
-  "solopasha/hyprland"
   "nclundell/fedora-extras"
-  "erikreider/swayosd"
+  "scottames/ghostty"
 )
 
 echo "Enabling required COPR repositories..."
@@ -31,6 +34,7 @@ for repo in "${COPR_REPOS[@]}"; do
     echo "✓ Successfully enabled: $repo"
   else
     echo "✗ Failed to enable: $repo (required)"
+    echo "  No usable chroot for Fedora $(fedora_version) $(uname -m), or the COPR project is gone."
     exit 1
   fi
 done
@@ -48,31 +52,21 @@ done
 echo "COPR repositories enabled."
 
 # -------------------------------------------------------------
-# HYPRLAND REPOSITORY PROTECTION 
-# Technochip must provide Hyprland core to keep Asahi compat.
-# Solopasha is used only as fallback for utilities (e.g. satty).
+# HYPRLAND REPOSITORY PROTECTION
+# Lionheartp must provide Hyprland core to keep Asahi compat.
 # -------------------------------------------------------------
-TECHNOCHIP_REPO_FILE="/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:technochip:Hyprland-aarch64.repo"
-SOLOPASHA_REPO_FILE="/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:solopasha:hyprland.repo"
+source "$OMARCHY_INSTALL/helpers/fedora-copr-protect.sh"
 
 echo "Applying repo protections for Hyprland stability..."
+fedora_remove_dead_copr_repos
+fedora_apply_copr_protections
 
-if [[ -f "$SOLOPASHA_REPO_FILE" ]]; then
-  # Remove any existing protections to recreate them clean
-  sudo sed -i '/^priority=/d' "$SOLOPASHA_REPO_FILE"
-  sudo sed -i '/^excludepkgs=/d' "$SOLOPASHA_REPO_FILE"
-  
-  # Inject protections: drop priority, and never pull core packages from here
-  # NOTE: hyprland-qtutils is deliberately NOT excluded so we can fetch it here
-  echo "priority=90" | sudo tee -a "$SOLOPASHA_REPO_FILE" >/dev/null
-  echo "excludepkgs=hyprland hyprland-devel hyprlock hypridle hyprsunset hyprpicker hyprwire aquamarine hyprgraphics hyprutils hyprlang hyprcursor xdg-desktop-portal-hyprland uwsm" | sudo tee -a "$SOLOPASHA_REPO_FILE" >/dev/null
-  echo "✓ Solopasha repo limits applied."
-fi
-
-if [[ -f "$TECHNOCHIP_REPO_FILE" ]]; then
-  sudo sed -i '/^priority=/d' "$TECHNOCHIP_REPO_FILE"
-  
-  # Boost priority for the Asahi safe build
-  echo "priority=10" | sudo tee -a "$TECHNOCHIP_REPO_FILE" >/dev/null
-  echo "✓ Technochip repo priority applied."
+echo "Running Fedora package reconciliation after COPR setup..."
+if [[ "${OMARCHY_DRY_RUN:-0}" == "1" ]]; then
+  echo "[DRY-RUN] Would run: sudo dnf distro-sync -y --refresh --allowerasing"
+else
+  if ! sudo dnf distro-sync -y --refresh --allowerasing; then
+    echo "✗ Fedora distro-sync failed after COPR setup"
+    exit 1
+  fi
 fi

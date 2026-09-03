@@ -1,0 +1,5 @@
+run_logged "$OMARCHY_INSTALL/hardware/network.sh"
+run_logged "$OMARCHY_INSTALL/hardware/input-group.sh"
+run_logged "$OMARCHY_INSTALL/hardware/set-wireless-regdom.sh"
+run_logged "$OMARCHY_INSTALL/hardware/bluetooth.sh"
+run_logged "$OMARCHY_INSTALL/hardware/vulkan.sh"

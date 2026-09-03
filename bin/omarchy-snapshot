@@ -1,16 +1,19 @@
 #!/bin/bash
 
+# omarchy:summary=Create or restore system snapshots with snapper
+# omarchy:args=<create|restore>
+# omarchy:requires-sudo=true
+
 set -e
 
 COMMAND="$1"
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 
 if [[ -z $COMMAND ]]; then
   echo "Usage: omarchy-snapshot <create|restore>" >&2
   exit 1
 fi
 
-if ! command -v snapper &>/dev/null; then
+if omarchy-cmd-missing snapper; then
   exit 127 # omarchy-update can use this to just ignore if snapper is not available
 fi
 
@@ -25,10 +28,17 @@ create)
 
   for config in "${CONFIGS[@]}"; do
     sudo snapper -c "$config" create -c number -d "$DESC"
+    sudo snapper -c "$config" cleanup number
   done
   echo
   ;;
 restore)
-  sudo limine-snapper-restore
+  if omarchy-cmd-present limine-snapper-restore; then
+    sudo limine-snapper-restore
+  else
+    # Fedora Asahi has no limine; restoring means rolling the root subvolume back with snapper.
+    echo "Pick a snapshot with 'sudo snapper list', then run 'sudo snapper rollback <number>' and reboot."
+    exit 1
+  fi
   ;;
 esac

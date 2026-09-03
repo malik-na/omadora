@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# omarchy:summary=Share clipboard, files, or folders with LocalSend
+# omarchy:group=share
+# omarchy:name=
+# omarchy:args=<clipboard|file|folder> [path...]
+# omarchy:examples=omarchy share clipboard | omarchy share file ~/Downloads/example.txt
+
+if (($# == 0)); then
+  echo "Usage: omarchy-menu-share [clipboard|file|folder]"
+  exit 1
+fi
+
+MODE="$1"
+shift
+
+if [[ $MODE == "clipboard" ]]; then
+  TEMP_FILE=$(mktemp --suffix=.txt)
+  wl-paste >"$TEMP_FILE"
+  FILE_ARRAY=("$TEMP_FILE")
+elif (($# > 0)); then
+  FILE_ARRAY=("$@")
+else
+  if [[ $MODE == "folder" ]]; then
+    # Pick a single folder from home directory
+    picked=$(find "$HOME" -type d 2>/dev/null | fzf)
+  else
+    # Pick one or more files from home directory
+    picked=$(find "$HOME" -type f 2>/dev/null | fzf --multi)
+  fi
+  [[ -z $picked ]] && exit 0
+  readarray -t FILE_ARRAY <<<"$picked"
+fi
+
+# Run LocalSend in its own systemd service (detached from terminal)
+systemd-run --user --quiet --collect localsend --headless send "${FILE_ARRAY[@]}"
+
+# Note: Temporary file will remain until system cleanup for clipboard mode
+# This ensures the file content is available for the LocalSend GUI
+
+exit 0

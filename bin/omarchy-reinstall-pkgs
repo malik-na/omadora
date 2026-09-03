@@ -1,14 +1,14 @@
 #!/bin/bash
+
+# omarchy:summary=Reinstall all default Omarchy packages
+# omarchy:requires-sudo=true
+
 set -e
 
-# Reinstall all default Omarchy packages from the stable channel and downgrade any packages that are too new.
+# Ensure every package in the Fedora default set is installed. dnf skips anything already present,
+# so this is safe to re-run; it repairs an install where packages were removed by hand.
+mapfile -t packages < <(grep -vE '^\s*#|^\s*$' "$OMARCHY_PATH/install/omarchy-base.packages.fedora")
+sudo dnf install -y --skip-unavailable "${packages[@]}"
 
-# Set the package repository to the stable mirrors
-omarchy-refresh-pacman
-
-# Downgrade any packages to the stable setup
-sudo pacman -Suu --noconfirm
-
-# Ensure all packages are installed
-mapfile -t packages < <(grep -v '^#' "$OMARCHY_PATH/install/omarchy-base.packages" | grep -v '^$')
-sudo pacman -Syu --noconfirm --needed "${packages[@]}"
+# The compositor is not in that list - it is a choice between hyprland and hyprland-git.
+bash "$OMARCHY_PATH/install/helpers/fedora-hyprland.sh"

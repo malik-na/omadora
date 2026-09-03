@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# omarchy:summary=Print the active Omarchy channel
+
+set -euo pipefail
+
+STATE_FILE="$HOME/.local/state/omarchy/channel"
+
+# A dev-linked source checkout overrides any recorded channel - the checkout is what actually runs.
+# omarchy-dev-status owns that detection (it reads /etc/omarchy.conf), so defer to it rather than
+# re-deriving it here.
+if omarchy-dev-status 2>/dev/null | grep -q '^dev-link: configured'; then
+  echo dev
+  exit 0
+fi
+
+if [[ -f $STATE_FILE ]]; then
+  case "$(<"$STATE_FILE")" in
+  stable)
+    echo stable
+    exit 0
+    ;;
+  dev)
+    echo dev
+    exit 0
+    ;;
+  esac
+fi
+
+# The git-clone install tracks the quattro branch, so a fresh install with no recorded channel is
+# stable.
+echo stable

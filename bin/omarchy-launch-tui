@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# omarchy:summary=Launch a TUI command in the default terminal with Omarchy styling
+# omarchy:args=<command> [args...]
 if (($# == 0)); then
   echo "Usage: omarchy-launch-tui <command> [args...]"
   exit 1

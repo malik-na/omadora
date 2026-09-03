@@ -2,30 +2,31 @@
 name: omarchy
 description: >
   REQUIRED for end-user customization of Linux desktop, window manager, or system config.
-  Use when editing ~/.config/hypr/, ~/.config/waybar/, ~/.config/walker/,
-  ~/.config/alacritty/, ~/.config/kitty/, ~/.config/ghostty/, ~/.config/mako/,
-  or ~/.config/omarchy/. Triggers: Hyprland, window rules, animations, keybindings,
-  monitors, gaps, borders, blur, opacity, waybar, walker, terminal config, themes,
-  wallpaper, night light, idle, lock screen, screenshots, layer rules, workspace
+  Use when editing ~/.config/hypr/, ~/.config/omarchy/,
+  ~/.config/alacritty/, ~/.config/foot/, ~/.config/kitty/, or ~/.config/ghostty/.
+  Triggers: Hyprland, window rules, animations, keybindings, monitors, gaps, borders,
+  blur, opacity, omarchy-shell, bar, terminal config, themes, background,
+  night light, idle, lock screen, screenshots, reminders, layer rules, workspace
   settings, display config, and user-facing omarchy commands. Excludes Omarchy
-  source development in ~/.local/share/omarchy/ and omarchy-dev-* workflows.
+  source development through `omarchy dev link` workflows.
 ---
 
 # Omarchy Mac Fedora Skill
 
-Manage Omarchy Mac Fedora systems on Fedora Asahi Remix Minimal (aarch64/Apple Silicon) with Hyprland.
+Manage Omarchy Mac Fedora systems - a Fedora Asahi Remix (aarch64/Apple Silicon) desktop built on Hyprland, ported from [Omarchy](https://omarchy.org/).
 
 ## Target Platform
 
 This skill is for the Omarchy Mac Fedora fork and assumes:
 
-- Fedora Asahi Remix Minimal
+- Fedora Asahi Remix Minimal, **release 44 or newer**
 - Apple Silicon (M1/M2/M3/M4) running `aarch64`
-- Omarchy Mac Fedora installed from `malik-na/omarchy-mac-fedora`
+- Omarchy Mac Fedora installed by git clone into `~/.local/share/omarchy`
 
-Unsupported targets for this skill:
+Unsupported targets:
 - Arch / ALARM-based Omarchy installs
 - Non-Asahi Fedora installs
+- **Fedora Asahi Remix 43 and older** - the installer and `omarchy-update` refuse to run and print the upgrade instructions; upgrade Fedora first
 - `x86_64` hosts
 
 This skill is for end-user customization on installed systems.
@@ -36,25 +37,27 @@ It is not for contributing to Omarchy source code.
 **ALWAYS invoke this skill for end-user requests involving ANY of these:**
 
 - Editing ANY file in `~/.config/hypr/` (window rules, animations, keybindings, monitors, etc.)
-- Editing ANY file in `~/.config/waybar/`, `~/.config/walker/`, `~/.config/mako/`
-- Editing terminal configs (alacritty, kitty, ghostty)
+- Editing `~/.config/omarchy/shell.json` (status bar layout, widgets)
+- Editing terminal configs (alacritty, foot, kitty, ghostty)
 - Editing ANY file in `~/.config/omarchy/`
 - Window behavior, animations, opacity, blur, gaps, borders
 - Layer rules, workspace settings, display/monitor configuration
-- Themes, wallpapers, fonts, appearance changes
-- User-facing `omarchy-*` commands (`omarchy-theme-*`, `omarchy-refresh-*`, `omarchy-restart-*`, etc.)
-- Screenshots, screen recording, night light, idle behavior, lock screen
+- Themes, backgrounds, fonts, appearance changes
+- User-facing `omarchy` commands (`omarchy theme ...`, `omarchy refresh ...`, `omarchy restart ...`, etc.)
+- Screenshots, screen recording, reminders, night light, idle behavior, lock screen
 
 **If you're about to edit a config file in ~/.config/ on this system, STOP and use this skill first.**
 
-**Do NOT use this skill for Omarchy development tasks** (editing files in `~/.local/share/omarchy/`, creating migrations, or running `omarchy-dev-*` workflows).
+**Do NOT use this skill for Omarchy development tasks** (editing the Omarchy source tree, creating migrations, or running `omarchy dev ...` workflows).
 
 ## Critical Safety Rules
 
+When invoking a privileged command directly, use `pkexec` instead of `sudo` so Omarchy can show a graphical authorization prompt with command context. Do not wrap commands that already manage privilege elevation themselves.
+
 **For end-user customization tasks, NEVER modify anything in `~/.local/share/omarchy/`** - but READING is safe and encouraged.
 
-This directory contains Omarchy Mac Fedora source files managed by git. Any changes will be:
-- Lost on next `omarchy-update`
+This directory contains Omarchy's source files managed by git. Any changes will be:
+- Lost on next `omarchy update`
 - Cause conflicts with upstream
 - Break the system's update mechanism
 
@@ -64,13 +67,14 @@ This directory contains Omarchy Mac Fedora source files managed by git. Any chan
 ├── config/                 # Default config templates
 ├── themes/                 # Stock themes
 ├── default/                # System defaults
+├── shell/                  # Omarchy shell source and defaults
 ├── migrations/             # Update migrations
 └── install/                # Installation scripts
 ```
 
 **Reading `~/.local/share/omarchy/` is SAFE and useful** - do it freely to:
-- Understand how omarchy commands work: `cat $(which omarchy-theme-set)`
-- See default configs before customizing: `cat ~/.local/share/omarchy/config/waybar/config.jsonc`
+- Understand how omarchy commands work: `omarchy theme set --help` or `cat $(which omarchy-theme-set)`
+- See default configs before customizing: `cat "$OMARCHY_PATH/config/omarchy/shell.json"`
 - Check stock theme files to copy for customization
 - Reference default hyprland settings: `cat ~/.local/share/omarchy/default/hypr/*`
 
@@ -79,106 +83,147 @@ This directory contains Omarchy Mac Fedora source files managed by git. Any chan
 - `~/.config/omarchy/themes/<custom-name>/` - Custom themes (must be real directories)
 - `~/.config/omarchy/hooks/` - Custom automation hooks
 
-## Omarchy Mac Fedora Architecture
+If the request is to develop Omarchy itself, this skill is out of scope. Follow repository development instructions instead of this skill.
+
+## Privilege Escalation
+
+For an interactive script or command run in a visible terminal, use `sudo` for
+privileged work. Omarchy may grant passwordless `sudo` access to particular
+commands, and the terminal is the appropriate place to request a password
+when one is needed.
+
+Use `pkexec` only when the caller cannot interact with a terminal or cannot
+enter a password there, such as a command launched by an agent or a graphical
+background process. Do not replace `sudo` with `pkexec` merely because a
+command changes system state.
+
+## System Architecture
 
 Omarchy Mac Fedora is built on:
 
 | Component | Purpose | Config Location |
 |-----------|---------|-----------------|
-| **Fedora Asahi Remix Minimal** | Base OS | `/etc/`, `~/.config/` |
+| **Fedora Asahi Remix** | Base OS (aarch64) | `/etc/`, `~/.config/` |
 | **Hyprland** | Wayland compositor/WM | `~/.config/hypr/` |
-| **Waybar** | Status bar | `~/.config/waybar/` |
-| **Walker** | App launcher | `~/.config/walker/` |
-| **Alacritty/Kitty/Ghostty** | Terminals | `~/.config/<terminal>/` |
-| **Mako** | Notifications | `~/.config/mako/` |
-| **SwayOSD** | On-screen display | `~/.config/swayosd/` |
+| **Omarchy shell** | Status bar + notifications (Quickshell) | `~/.config/omarchy/shell.json` |
+| **Launcher** | Quickshell launcher | `~/.config/omarchy/shell.json` |
+| **Alacritty/Foot/Kitty/Ghostty** | Terminals | `~/.config/<terminal>/` |
+| **Omarchy OSD** | On-screen display | Quickshell plugin |
 
 ## Command Discovery
 
-Omarchy Mac Fedora provides ~145 commands following `omarchy-<category>-<action>` pattern.
+Omarchy ships a single `omarchy` CLI that dispatches to all `omarchy-*` binaries via `omarchy <group> <action>`. Always prefer this form — it is self-documenting and stable. The underlying `omarchy-*` binaries still exist on `PATH` and remain safe to read for source.
 
 ```bash
-# List all omarchy commands
-compgen -c | grep -E '^omarchy-' | sort -u
+# List every documented command and its summary
+omarchy commands
 
-# Find commands by category
-compgen -c | grep -E '^omarchy-theme'
-compgen -c | grep -E '^omarchy-restart'
+# Show the commands inside a group
+omarchy theme --help
+omarchy refresh --help
+omarchy restart --help
+
+# Show help for a specific command (does not execute it)
+omarchy theme set --help
+
+# Machine-readable listing (binary, route, summary, args, aliases)
+omarchy commands --json
 
 # Read a command's source to understand it
 cat $(which omarchy-theme-set)
 ```
 
-### Command Categories
+### Command Groups
 
-| Prefix | Purpose | Example |
-|--------|---------|---------|
-| `omarchy-refresh-*` | Reset config to defaults (backs up first) | `omarchy-refresh-waybar` |
-| `omarchy-restart-*` | Restart a service/app | `omarchy-restart-waybar` |
-| `omarchy-toggle-*` | Toggle feature on/off | `omarchy-toggle-nightlight` |
-| `omarchy-theme-*` | Theme management | `omarchy-theme-set <name>` |
-| `omarchy-install-*` | Install optional software | `omarchy-install-docker-dbs` |
-| `omarchy-launch-*` | Launch apps | `omarchy-launch-browser` |
-| `omarchy-cmd-*` | System commands | `omarchy-cmd-screenshot` |
-| `omarchy-pkg-*` | Package management (dnf-backed) | `omarchy-pkg-install <pkg>` |
-| `omarchy-setup-*` | Initial setup tasks | `omarchy-setup-fingerprint` |
-| `omarchy-update-*` | System updates | `omarchy-update` |
+Run `omarchy --help` for the full list. The most common groups:
+
+| Group | Purpose | Example |
+|-------|---------|---------|
+| `omarchy refresh` | Reset config to defaults (backs up first) | `omarchy refresh shell` |
+| `omarchy restart` | Restart a service/app | `omarchy restart shell` |
+| `omarchy toggle` | Toggle feature on/off | `omarchy toggle nightlight` |
+| `omarchy theme` | Theme management | `omarchy theme set <name>` |
+| `omarchy bar` | Bar layout and widgets | `omarchy bar plugin move omarchy.clock --section right` |
+| `omarchy plugin` | Manage/clone shell plugins | `omarchy plugin clone omarchy.clock local.clock --replace` |
+| `omarchy hook` | Install automation hooks | `omarchy hook install theme-set <script>` |
+| `omarchy install` | Install optional software / packages | `omarchy install docker dbs` |
+| `omarchy launch` | Launch apps | `omarchy launch browser` |
+| `omarchy capture` | Screenshots and recordings | `omarchy capture screenshot` |
+| `omarchy reminder` | Desktop notification reminders | `omarchy reminder 15 "Pickup Jack"` |
+| `omarchy pkg` | Package management | `omarchy pkg add <pkg>` |
+| `omarchy setup` | Interactive setup wizards | `omarchy setup security fingerprint` |
+| `omarchy update` | System updates | `omarchy update` |
 
 ## Configuration Locations
 
 ### Hyprland (Window Manager)
 
+Omarchy configures Hyprland in Lua. User files are loaded after Omarchy's
+defaults, so overrides go here:
+
 ```
 ~/.config/hypr/
-├── hyprland.conf      # Main config (sources others)
-├── bindings.conf      # Keybindings
-├── monitors.conf      # Display configuration
-├── input.conf         # Keyboard/mouse settings
-├── looknfeel.conf     # Appearance (gaps, borders, animations)
-├── envs.conf          # Environment variables
-├── autostart.conf     # Startup applications
-├── hypridle.conf      # Idle behavior (screen off, lock, suspend)
-├── hyprlock.conf      # Lock screen appearance
+├── hyprland.lua       # Main config (loads Omarchy defaults, then user files)
+├── bindings.lua       # Keybindings
+├── monitors.lua       # Display configuration
+├── input.lua          # Keyboard/mouse settings
+├── looknfeel.lua      # Appearance (gaps, borders, animations)
+├── autostart.lua      # Startup applications
 └── hyprsunset.conf    # Night light / blue light filter
 ```
 
 **Key behaviors:**
 - Hyprland auto-reloads on config save (no restart needed for most changes)
 - Use `hyprctl reload` to force reload
-- Use `omarchy-refresh-hyprland` to reset to defaults
+- After ANY Hyprland config change, validate with `hyprctl reload` followed by `hyprctl configerrors`
+- If `hyprctl configerrors` reports errors, address them and rerun validation until clean or until a real blocker is identified
+- Use `omarchy refresh hyprland` to reset to defaults
 
-### Waybar (Status Bar)
+### Omarchy shell (Status Bar + Notifications)
+
+The bar, notification daemon, settings panel, and assorted overlays all run
+inside a single long-running Quickshell process (`omarchy-shell`).
 
 ```
-~/.config/waybar/
-├── config.jsonc       # Bar layout and modules (JSONC format)
-└── style.css          # Styling
+~/.config/omarchy/shell.json             # User overrides: bar, plugins, idle
+~/.config/omarchy/plugins/<plugin-id>/   # User-owned shell plugins
+$OMARCHY_PATH/config/omarchy/shell.json  # Canonical defaults
 ```
 
-**Waybar does NOT auto-reload.** You MUST run `omarchy-restart-waybar` after any config changes.
+The shell hot-reloads `shell.json` on save — no restart needed for layout
+changes. `idle.screensaver` and `idle.lock` are seconds since user idle began.
 
-**Commands:** `omarchy-restart-waybar`, `omarchy-refresh-waybar`, `omarchy-toggle-waybar`
+To customize a built-in bar widget, never edit `$OMARCHY_PATH/shell/plugins/`.
+Clone it into the user plugin directory instead:
+
+```bash
+omarchy plugin clone omarchy.workspaces local.workspaces --replace
+# Edit ~/.config/omarchy/plugins/local.workspaces/, then:
+omarchy plugin rescan
+```
+
+**Commands:** `omarchy restart shell`, `omarchy refresh shell`
 
 ### Terminals
 
 ```
 ~/.config/alacritty/alacritty.toml
+~/.config/foot/foot.ini
 ~/.config/kitty/kitty.conf
 ~/.config/ghostty/config
 ```
 
-**Command:** `omarchy-restart-terminal`
+**Command:** `omarchy restart terminal`
 
 ### Other Configs
 
 | App | Location |
 |-----|----------|
 | btop | `~/.config/btop/btop.conf` |
-| fastfetch | `~/.config/fastfetch/config.jsonc` |
+| fastfetch | `/etc/fastfetch/config.jsonc` default; `~/.config/fastfetch/config.jsonc` user override |
 | lazygit | `~/.config/lazygit/config.yml` |
 | starship | `~/.config/starship.toml` |
 | git | `~/.config/git/config` |
-| walker | `~/.config/walker/config.toml` |
 
 ## Safe Customization Patterns
 
@@ -188,18 +233,18 @@ For simple changes, edit files in `~/.config/`:
 
 ```bash
 # 1. Read current config
-cat ~/.config/hypr/bindings.conf
+cat ~/.config/hypr/bindings.lua
 
 # 2. Backup before changes
-cp ~/.config/hypr/bindings.conf ~/.config/hypr/bindings.conf.bak.$(date +%s)
+cp ~/.config/hypr/bindings.lua ~/.config/hypr/bindings.lua.bak.$(date +%s)
 
 # 3. Make changes with Edit tool
 
 # 4. Apply changes
-# - Hyprland: auto-reloads on save (no restart needed)
-# - Waybar: MUST restart with omarchy-restart-waybar
-# - Walker: MUST restart with omarchy-restart-walker
-# - Terminals: MUST restart with omarchy-restart-terminal
+# - Hyprland: auto-reloads on save, but MUST validate with `hyprctl reload` and `hyprctl configerrors`
+# - Omarchy shell: shell.json hot-reloads; use `omarchy plugin rescan` for plugin/widget code changes
+# - Launcher: restart with `omarchy restart shell`
+# - Terminals: MUST restart with `omarchy restart terminal`
 ```
 
 ### Pattern 2: Make a new theme
@@ -207,21 +252,25 @@ cp ~/.config/hypr/bindings.conf ~/.config/hypr/bindings.conf.bak.$(date +%s)
 1. Create a directory under ~/.config/omarchy/themes.
 2. See how an existing theme is done via ~/.local/share/omarchy/themes/catppuccin.
 3. Download a matching background (or several) from the internet and put them in ~/.config/omarchy/themes/[name-of-new-theme]
-4. When done with the theme, run omarchy-theme-set "Name of new theme"
+4. When done with the theme, run `omarchy theme set "Name of new theme"`
 
 ### Pattern 3: Use Hooks for Automation
 
-Create scripts in `~/.config/omarchy/hooks/` to run automatically on events:
+Hooks live in `~/.config/omarchy/hooks/<name>.d/` — one directory per event,
+holding any number of independent scripts. Install with
+`omarchy hook install <name> <script>` (copies the script in and makes it
+executable):
 
-```bash
-# Available hooks (see samples in ~/.config/omarchy/hooks/):
+```
 ~/.config/omarchy/hooks/
-├── theme-set        # Runs after theme change (receives theme name as $1)
-├── font-set         # Runs after font change
-└── post-update      # Runs after omarchy-update
+├── battery-low.d/          # Low battery (percentage in $1)
+├── font-set.d/             # After font change (font name in $1)
+├── post-boot.d/            # After the desktop starts
+├── post-update.d/          # After `omarchy update`
+└── theme-set.d/            # After theme change (theme slug in $1)
 ```
 
-Example hook (`~/.config/omarchy/hooks/theme-set`):
+Example hook script:
 ```bash
 #!/bin/bash
 THEME_NAME=$1
@@ -235,12 +284,12 @@ When customizations go wrong:
 
 ```bash
 # Reset specific config (creates backup automatically)
-omarchy-refresh-waybar
-omarchy-refresh-hyprland
+omarchy refresh shell
+omarchy refresh hyprland
 
 # The refresh command:
 # 1. Backs up current config with timestamp
-# 2. Copies default from ~/.local/share/omarchy/config/
+# 2. Copies default from $OMARCHY_PATH/config/
 # 3. Restarts the component
 ```
 
@@ -249,102 +298,97 @@ omarchy-refresh-hyprland
 ### Themes
 
 ```bash
-omarchy-theme-list              # Show available themes
-omarchy-theme-current           # Show current theme
-omarchy-theme-set <name>        # Apply theme (use "Tokyo Night" not "tokyo-night")
-omarchy-theme-next              # Cycle to next theme
-omarchy-theme-bg-next           # Cycle wallpaper
-omarchy-theme-install <url>     # Install from git repo
+omarchy theme list              # Show available themes
+omarchy theme current           # Show current theme
+omarchy theme set <name>        # Apply theme ("Tokyo Night" and "tokyo-night" both work)
+omarchy theme bg next           # Cycle background
+omarchy theme install <url>     # Install from git repo
 ```
 
 ### Keybindings
 
-Edit `~/.config/hypr/bindings.conf`. Format:
-```
-bind = SUPER, Return, exec, xdg-terminal-exec
-bind = SUPER, Q, killactive
-bind = SUPER SHIFT, E, exit
+Edit `~/.config/hypr/bindings.lua`. Format:
+```lua
+o.bind("SUPER + SHIFT + R", "SSH", "alacritty -e ssh your-server")
+o.bind("SUPER + B", "Browser", { launch = "chromium" })  -- launch wraps with uwsm-app
 ```
 
-View current bindings: `omarchy-menu-keybindings --print`
+View current bindings: `omarchy menu keybindings --print`
 
 **IMPORTANT: When re-binding an existing key:**
 
-1. First check existing bindings: `omarchy-menu-keybindings --print`
-2. If the key is already bound, you MUST add an `unbind` directive BEFORE your new `bind`
+1. First check existing bindings: `omarchy menu keybindings --print`
+2. If the key is already bound, you MUST call `hl.unbind(...)` BEFORE the new `o.bind(...)`
 3. Inform the user what the key was previously bound to
 
 Example - rebinding SUPER+F (which is bound to fullscreen by default):
-```
-# Unbind existing SUPER+F (was: fullscreen)
-unbind = SUPER, F
-# New binding for file manager
-bind = SUPER, F, exec, nautilus
+```lua
+-- Unbind existing SUPER+F (was: fullscreen)
+hl.unbind("SUPER + F")
+-- New binding for file manager
+o.bind("SUPER + F", "File manager", { launch = "nautilus" })
 ```
 
-Always tell the user: "Note: SUPER+F was previously bound to fullscreen. I've added an unbind directive to override it."
+Always tell the user: "Note: SUPER+F was previously bound to fullscreen. I've added an unbind to override it."
 
 ### Display/Monitors
 
-Edit `~/.config/hypr/monitors.conf`. Format:
-```
-monitor = eDP-1, 1920x1080@60, 0x0, 1
-monitor = HDMI-A-1, 2560x1440@144, 1920x0, 1
+Edit `~/.config/hypr/monitors.lua`. Format:
+```lua
+hl.monitor({ output = "eDP-1", mode = "1920x1080@60", position = "0x0", scale = 1 })
+hl.monitor({ output = "HDMI-A-1", mode = "2560x1440@144", position = "1920x0", scale = 1 })
 ```
 
-List monitors: `hyprctl monitors`
+List monitors and supported modes: `hyprctl monitors all`
 
 ### Window Rules
 
 **CRITICAL: Hyprland window rules syntax changes frequently between versions.**
 
 Before writing ANY window rules, you MUST fetch the current documentation from the official Hyprland wiki:
-- https://github.com/hyprwm/hyprland-wiki/blob/main/content/Configuring/Window-Rules.md
+- https://wiki.hypr.land/Configuring/Window-Rules/
 
 DO NOT rely on cached or memorized window rule syntax. The format has changed multiple times and using outdated syntax will cause errors or unexpected behavior.
 
-Window rules go in `~/.config/hypr/hyprland.conf` or a sourced file. Always verify the current syntax from the wiki first.
+Window rules go in `~/.config/hypr/hyprland.lua` or a required Lua module. Prefer Omarchy's `o.window(match, rules)` helper — see examples in `$OMARCHY_PATH/default/hypr/windows.lua`.
 
 ### Fonts
 
 ```bash
-omarchy-font-list               # Available fonts
-omarchy-font-current            # Current font
-omarchy-font-set <name>         # Change font
+omarchy font list               # Available fonts
+omarchy font current            # Current font
+omarchy font set <name>         # Change font
 ```
 
 ### System
 
 ```bash
-omarchy-update                  # Full system update
-omarchy-version                 # Show Omarchy Mac Fedora version
-omarchy-debug --no-sudo --print # Debug info (ALWAYS use these flags)
-omarchy-lock-screen             # Lock screen
-omarchy-system-shutdown         # Shutdown
-omarchy-system-reboot           # Reboot
+omarchy update                  # Full system update
+omarchy version                 # Show Omarchy version
+omarchy debug --no-sudo --print # Debug info (ALWAYS use these flags)
+omarchy system lock             # Lock screen
+omarchy system shutdown         # Shutdown
+omarchy system reboot           # Reboot
 ```
 
-**IMPORTANT:** Always run `omarchy-debug` with `--no-sudo --print` flags to avoid interactive sudo prompts that will hang the terminal.
+**IMPORTANT:** Always run `omarchy debug` with `--no-sudo --print` flags to avoid interactive sudo prompts that will hang the terminal.
 
 ## Troubleshooting
 
 ```bash
 # Get debug information (ALWAYS use these flags to avoid interactive prompts)
-omarchy-debug --no-sudo --print
-
-# Upload logs for support
-omarchy-upload-log
+omarchy debug --no-sudo --print
 
 # Reset specific config to defaults
-omarchy-refresh-<app>
+omarchy refresh <app>
 
 # Refresh specific config file
 # config-file path is relative to ~/.config/
-# eg. omarchy-refresh-config hypr/hyprlock.conf will refresh ~/.config/hypr/hyprlock.conf
-omarchy-refresh-config <config-file>
+# eg. `omarchy refresh config hypr/hyprland.lua` will refresh ~/.config/hypr/hyprland.lua
+omarchy refresh config <config-file>
 
 # Full reinstall of configs (nuclear option)
-omarchy-reinstall
+omarchy reinstall
 ```
 
 ## Decision Framework
@@ -354,35 +398,41 @@ When user requests system changes:
 1. **Is it a stock omarchy command?** Use it directly
 2. **Is it a config edit?** Edit in `~/.config/`, never `~/.local/share/omarchy/`
 3. **Is it a theme customization?** Create a NEW custom theme directory
-4. **Is it automation?** Use hooks in `~/.config/omarchy/hooks/`
-5. **Is it a package install?** Use `omarchy-pkg-install <pkg>` or `dnf`
-6. **Unsure if command exists?** Search with `compgen -c | grep omarchy`
+4. **Is it automation?** Use `omarchy hook install` and the hook `.d` directories
+5. **Is it a package install?** Use `omarchy pkg add <pkgs...>` (dnf, plus the configured COPRs) - there is no AUR on Fedora
+6. **Is it built-in shell/plugin code?** Clone it with `omarchy plugin clone`; never edit the packaged copy
+7. **Unsure if command exists?** Run `omarchy commands` (or `omarchy <group> --help` for one group)
+
+### Reminder Requests
+
+When the user asks to set a reminder, use `omarchy reminder <minutes> [message]` directly. Convert natural language durations to minutes and title-case short reminder labels when appropriate.
+
+```bash
+omarchy reminder 15 "Pickup Jack"
+omarchy reminder 60 "Check laundry"
+omarchy reminder show
+omarchy reminder clear
+```
 
 ## Out of Scope
 
-When contributing to Omarchy Mac Fedora itself (e.g., fixing bugs, adding features), migrations are used to apply changes to existing installations.
-
-### Creating Migrations
-
-```bash
-# ALWAYS use --no-edit flag or you will get stuck
-omarchy-dev-add-migration --no-edit
-```
-
-This creates a new migration file and outputs its path without opening an editor. The migration filename is based on the git commit timestamp.
-
-**Migration files** are shell scripts in `~/.local/share/omarchy/migrations/` that run once per system during `omarchy-update`. Use them for:
-- Updating user configs with new defaults
-- Installing new dependencies
-- Running one-time setup tasks
+This skill intentionally does not cover Omarchy source development. Do not use this skill for:
+- Editing files in `~/.local/share/omarchy/` (`bin/`, `config/`, `default/`, `shell/`, `themes/`, `migrations/`, etc.)
+- Creating or editing migrations
+- Running `omarchy dev ...` commands
 
 ## Example Requests
 
-- "Change my theme to catppuccin" -> `omarchy-theme-set catppuccin`
-- "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, add `unbind` if needed, then add `bind` in `~/.config/hypr/bindings.conf`
-- "Configure my external monitor" -> Edit `~/.config/hypr/monitors.conf`
-- "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.conf`
-- "Set up night light to turn on at sunset" -> `omarchy-toggle-nightlight` or edit `~/.config/hypr/hyprsunset.conf`
+- "Change my theme to catppuccin" -> `omarchy theme set catppuccin`
+- "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, call `hl.unbind` if needed, then `o.bind` in `~/.config/hypr/bindings.lua`
+- "Configure my external monitor" -> Edit `~/.config/hypr/monitors.lua`
+- "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.lua`
+- "Set up night light to turn on at sunset" -> `omarchy toggle nightlight` or edit `~/.config/hypr/hyprsunset.conf`
+- "Set a reminder to pickup jack in 15 minutes" -> `omarchy reminder 15 "Pickup Jack"`
+- "Show my reminders" -> `omarchy reminder show`
+- "Clear all reminders" -> `omarchy reminder clear`
 - "Customize the catppuccin theme colors" -> Create `~/.config/omarchy/themes/catppuccin-custom/` by copying from stock, then edit
-- "Run a script every time I change themes" -> Create `~/.config/omarchy/hooks/theme-set`
-- "Reset waybar to defaults" -> `omarchy-refresh-waybar`
+- "Run a script every time I change themes" -> Install it with `omarchy hook install theme-set <script>`
+- "Change how workspace labels are rendered" -> Clone `omarchy.workspaces` to a user plugin with `--replace`, then edit the clone
+- "Lock after ten minutes" -> Set `idle.lock` to `600` in `~/.config/omarchy/shell.json`
+- "Reset shell/bar to defaults" -> `omarchy refresh shell`

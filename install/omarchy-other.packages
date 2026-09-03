@@ -15,9 +15,6 @@ git
 grim
 gst-plugin-pipewire
 gtk4-layer-shell
-htop
-intltool
-iwd
 jdk-openjdk
 libpulse
 libsass
@@ -45,9 +42,16 @@ qalculate
 snapper
 #thermald (x86_64-only, installed conditionally via install/config/hardware/intel/thermald.sh)
 webp-pixbuf-loader
-wget
 yay-debug
 yt6801-dkms
 zram-generator
 
+# Intel encoding processing (x86-only, skipped on Apple Silicon)
+#libvpl
+#vpl-gpu-rt
+
+# Vulkan drivers (x86 GPUs; Apple Silicon uses Fedora mesa-vulkan-drivers via the .fedora list)
+#vulkan-intel
+#vulkan-radeon
+#vulkan-asahi
 

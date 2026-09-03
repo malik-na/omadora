@@ -1,6 +1,13 @@
-# Omarchy Mac Fedora (Fedora Asahi Remix)
+# Omarchy Mac Fedora — Quattro
 
 A concise, beginner-friendly guide to install Omarchy Mac Fedora on **Fedora Asahi Remix (aarch64)** for Apple Silicon Macs M1/M2
+
+> ### 🆕 This is Omarchy "Quattro"
+> This branch tracks **Omarchy quattro** — a major rework of the desktop. The bar, launcher,
+> notifications, and OSD (waybar / walker / mako / swayosd) are replaced by a single **Quickshell**
+> shell, and all Hyprland config — including every keybinding — moves to **Lua** (`.conf` → `.lua`).
+> **→ See [QUATTRO-CHANGES.md](QUATTRO-CHANGES.md) for the full list of what changed.**
+> For the previous 3.8.x line, use the `sync/upstream-v3.8.2` branch.
 
 _This project is an extension of [Omarchy Mac](https://github.com/malik-na/omarchy-mac) project._
 
@@ -24,7 +31,7 @@ _This project is an extension of [Omarchy Mac](https://github.com/malik-na/omarc
 Requirements:
 
 - Apple Silicon Mac (M1/M2 family)
-- Fedora Asahi Remix Minimal (aarch64)
+- **Fedora Asahi Remix 44 Minimal (aarch64) or newer**
 - A regular user with sudo access
 - Internet connectivity
 - `git` installed
@@ -34,11 +41,33 @@ Unsupported targets:
 - Arch/Asahi Alarm runtime paths
 - Non-Asahi Fedora installs
 - x86_64
+- **Fedora Asahi Remix 43 and older** - see below
+
+### Already on Fedora Asahi Remix 43?
+
+Omarchy 3.8.2 requires Fedora 44. Several packages it needs no longer exist on 43, and the Hyprland
+0.55 build it targets is only published for the 44 chroot. Upgrade Fedora first:
+
+```bash
+sudo dnf upgrade --refresh
+sudo dnf install dnf-plugin-system-upgrade
+sudo dnf system-upgrade download --releasever=44
+sudo dnf system-upgrade reboot
+```
+
+The machine reboots into the upgrade, so close your work first. When it comes back up, run
+`omarchy-update`.
+
+Omarchy never runs the system upgrade for you: it reboots the machine and can leave an Asahi install
+unbootable, so it is your call, not the installer's. Until you upgrade, the installer, `omarchy-update`
+and `omarchy-migrate` all stop with these instructions and change nothing - an existing Fedora 43
+install keeps working on the Omarchy version it already has.
 
 Checklist:
 
 - [ ] Backup completed
 - [ ] Fedora Asahi device compatibility checked
+- [ ] Running Fedora Asahi Remix 44 or newer (`cat /etc/os-release`)
 - [ ] Fedora Asahi first-boot TTY setup completed (language, hostname, time, root password, user, wheel)
 - [ ] Internet connected
 - [ ] Sudo user ready
@@ -49,7 +78,7 @@ Checklist:
 
 Use one of these methods from your Fedora Asahi session before running the installer.
 
-### Option 1: `nmcli` (NetworkManager CLI)
+Use `nmcli` (NetworkManager CLI):
 
 ```bash
 # Check network devices
@@ -59,19 +88,8 @@ nmcli device status
 nmcli device wifi connect "SSID_NAME" password "PASSWORD"
 ```
 
-### Option 2: `iwctl` (iwd)
-
-```bash
-iwctl
-# inside iwctl:
-# device list
-# station wlan0 scan
-# station wlan0 get-networks
-# station wlan0 connect "SSID_NAME"
-# exit
-```
-
-If `wlan0` does not exist on your system, replace it with your detected wireless interface name.
+The connection you make here carries over into the installed system: the installer leaves
+NetworkManager on its default `wpa_supplicant` backend and does not touch saved profiles.
 
 Fedora Asahi Minimal normally includes the required first-boot setup prompts; use these commands only to ensure networking is ready before install.
 
@@ -99,7 +117,10 @@ sudo setfont ter-v22n
 
 ### Install Omarchy Mac Fedora
 
-As your regular sudo user:
+As your regular sudo user;
+
+
+Clone and run the installer:
 
 ```bash
 sudo dnf update
@@ -107,6 +128,9 @@ git clone https://github.com/malik-na/omarchy-mac-fedora.git ~/.local/share/omar
 cd ~/.local/share/omarchy
 bash install.sh
 ```
+
+`omarchy update` pulls from wherever you cloned, so a fork installs and updates from that fork
+without any extra configuration.
 
 ---
 
@@ -122,6 +146,8 @@ bash install.sh
 
 The installer currently supports **Fedora Asahi Remix on aarch64 only**. Verify distro/architecture and rerun.
 
+On **Fedora Asahi Remix 43 or older** the installer, `omarchy-update` and `omarchy-migrate` all stop on purpose and print the upgrade steps. Upgrade Fedora to 44 first - see [Already on Fedora Asahi Remix 43?](#already-on-fedora-asahi-remix-43) above.
+
 ### Session launches but keybinds fail
 
 Run this to confirm Omarchy commands resolve in your login shell:
@@ -131,14 +157,13 @@ bash -lc 'echo "$PATH"'
 bash -lc 'command -v omarchy-menu omarchy-cmd-terminal-cwd uwsm-app'
 ```
 
-For implementation and runtime hardening details, see `FEDORA_ASAHI_PORTING_PLAN.md`.
-
 ---
 
 ## Update and maintenance
 
-- `Menu > Update > Omarchy` updates both the Omarchy repository and Fedora system packages (`dnf upgrade --refresh`).
-- Waybar update indicators track git divergence from your configured upstream branch.
+- `Menu > Update > Omarchy` pulls the Omarchy repository, runs any pending migrations, and updates Fedora packages (`dnf upgrade --refresh`).
+- It also covers what `dnf` cannot reach: the `--user` Flatpak apps (Obsidian, Moonlight), the npx-wrapped CLI tools, and the mise runtimes. `DEPENDENCIES.md` lists every external source and the mechanism that updates it.
+- Update availability is tracked as git divergence from your configured upstream branch.
 
 Check branch/upstream state:
 

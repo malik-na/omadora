@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# omarchy:summary=Restart the Omarchy shell
+# omarchy:examples=omarchy restart shell
+
+CONFIG_DIR="$OMARCHY_PATH/shell"
+[[ -f $CONFIG_DIR/shell.qml ]] || { echo "Omarchy shell config not found: $CONFIG_DIR" >&2; exit 1; }
+
+# Allow running from outside the session (e.g. over ssh) by deriving the
+# Hyprland instance signature from the newest instance runtime dir.
+if [[ -z ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+  hypr_dir=$(find "${XDG_RUNTIME_DIR:-/run/user/$UID}/hypr" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n 1 | cut -d' ' -f2-)
+  [[ -n $hypr_dir ]] && export HYPRLAND_INSTANCE_SIGNATURE=${hypr_dir##*/}
+fi
+
+if [[ $(hyprctl -j monitors 2>/dev/null) == *'"LOCK"'* ]]; then
+  echo "Refusing to restart Omarchy shell while the session is locked." >&2
+  exit 1
+fi
+
+for (( attempt = 0; attempt < 50; attempt++ )); do
+  quickshell kill -p "$CONFIG_DIR" --any-display >/dev/null 2>&1 || break
+  sleep 0.1
+done
+
+if (( attempt == 50 )); then
+  echo "Could not stop all Omarchy shell instances." >&2
+  exit 1
+fi
+
+setsid quickshell -n -p "$CONFIG_DIR" >/dev/null 2>&1 &
+
+for (( attempt = 0; attempt < 20; attempt++ )); do
+  OMARCHY_SHELL_IPC_TIMEOUT=0.5s omarchy-shell shell ping >/dev/null 2>&1 && exit 0
+  sleep 0.1
+done
+
+echo "Omarchy shell did not become ready after restart." >&2
+exit 1

@@ -1,12 +1,20 @@
 #!/bin/bash
 
-# Returns true if a battery is present on the system.
-# Used by the battery monitor and other battery-related checks.
+# omarchy:summary=Returns true if a battery is present on the system.
 
-for bat in /sys/class/power_supply/BAT*; do
-  [[ -r $bat/present ]] &&
-  [[ $(cat $bat/present) == "1" ]] &&
-  [[ $(cat $bat/type) == "Battery" ]] &&
+# Not BAT*: Apple Silicon calls its battery macsmc-battery, so that glob matched nothing on a Mac and
+# every Mac looked like a desktop. The type file is what actually identifies a battery.
+
+for supply in /sys/class/power_supply/*; do
+  [[ -r $supply/type ]] || continue
+  [[ $(cat "$supply/type") == "Battery" ]] || continue
+
+  # Not every driver exposes `present`. Where it exists it has to say so; where it does not, a device
+  # that reports itself as a Battery is one.
+  if [[ -r $supply/present ]]; then
+    [[ $(cat "$supply/present") == "1" ]] || continue
+  fi
+
   exit 0
 done
 

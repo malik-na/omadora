@@ -1,0 +1,149 @@
+#!/bin/bash
+# Install the parts of default/ that belong to the system rather than to a user.
+#
+# Upstream ships these in the omarchy-settings Arch package, which drops them straight into /usr.
+# The fork installs by git clone, so nothing was placing them at all: the SDDM theme
+# install/login/sddm.sh selects, the systemd user units, the uwsm and environment.d drop-ins, the
+# fontconfig rule and the Plymouth theme were all missing on a finished install. Runs as root from
+# install.sh, so no internal sudo.
+#
+# Everything here is a copy from the checkout, so re-running refreshes the installed copies. The
+# checkout stays the source of truth: an omarchy-update that changes these files needs this script
+# (or the matching omarchy-refresh-* command) to run before the change reaches the system.
+
+omarchy_default="$OMARCHY_PATH/default"
+
+# SDDM theme and its Hyprland config. install/login/sddm.sh writes [Theme] Current=omarchy, so
+# without this SDDM starts with a theme directory that does not exist.
+install -d /usr/share/sddm/themes
+cp -RT "$omarchy_default/sddm/omarchy" /usr/share/sddm/themes/omarchy
+install -Dm644 "$omarchy_default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
+
+# Systemd units: the user services and paths the session expects, the sleep hook, and the
+# faster-shutdown drop-in for user@.service.
+#
+# The units are written for the Arch package and call /usr/bin/omarchy-*, which does not exist here:
+# the fork's commands live in the clone at $OMARCHY_PATH/bin. systemd needs an absolute ExecStart and
+# will not search PATH, so the path is rewritten as the units are installed. That bakes the
+# installing user's clone path into a unit under /usr/lib, which suits this single-user install (the
+# same assumption install/login/sddm.sh already makes for autologin) but would need revisiting if the
+# fork ever supported several users.
+install -d /usr/lib/systemd/user
+for unit in "$omarchy_default"/systemd/user/*.service "$omarchy_default"/systemd/user/*.path; do
+  sed -e "s|/usr/bin/omarchy-|$OMARCHY_PATH/bin/omarchy-|g" \
+    -e "s|/usr/share/omarchy|$OMARCHY_PATH|g" "$unit" \
+    >"/usr/lib/systemd/user/$(basename "$unit")"
+done
+install -Dm755 "$omarchy_default/systemd/system-sleep/unmount-fuse" \
+  /usr/lib/systemd/system-sleep/unmount-fuse
+install -Dm644 "$omarchy_default/systemd/user@.service.d/faster-shutdown.conf" \
+  /usr/lib/systemd/system/user@.service.d/faster-shutdown.conf
+
+# OMARCHY_PATH for every layer. /etc/omarchy.conf is the source of truth
+# env-bootstrap reads (omarchy-dev-link/-unlink rewrite it); without it every
+# consumer falls back to the Arch package path /usr/share/omarchy, which does
+# not exist on a git-clone install - the Hyprland session then dies inside
+# hyprland.lua before the compositor starts, and SDDM bounces back to the
+# greeter. Written the same way omarchy-dev-unlink writes it.
+printf 'export OMARCHY_PATH="%s"\n' "$OMARCHY_PATH" >/etc/omarchy.conf
+
+# Session environment drop-ins. The uwsm hook and the login-shell hook both
+# source env-bootstrap from the Arch package path; point them into the clone
+# as they are installed, the same rewrite the systemd units get above.
+install -d /usr/share/uwsm/env.d
+sed "s|/usr/share/omarchy/|$OMARCHY_PATH/|g" "$omarchy_default/uwsm/env.d/10-omarchy" \
+  >/usr/share/uwsm/env.d/10-omarchy
+chmod 644 /usr/share/uwsm/env.d/10-omarchy
+install -d /etc/profile.d
+sed "s|/usr/share/omarchy/|$OMARCHY_PATH/|g" "$OMARCHY_PATH/etc/profile.d/omarchy.sh" \
+  >/etc/profile.d/omarchy.sh
+chmod 644 /etc/profile.d/omarchy.sh
+install -d /usr/lib/environment.d
+cp -f "$omarchy_default"/environment.d/*.conf /usr/lib/environment.d/
+
+# Fontconfig rule, enabled the way Fedora expects (conf.avail plus a symlink in conf.d).
+install -Dm644 "$omarchy_default/fontconfig/conf.avail/50-omarchy.conf" \
+  /usr/share/fontconfig/conf.avail/50-omarchy.conf
+install -d /etc/fonts/conf.d
+ln -sfn /usr/share/fontconfig/conf.avail/50-omarchy.conf /etc/fonts/conf.d/50-omarchy.conf
+
+# Terminal preference list used by xdg-terminal-exec.
+install -Dm644 "$omarchy_default/xdg-terminal-exec/hyprland-xdg-terminals.list" \
+  /usr/share/xdg-terminal-exec/hyprland-xdg-terminals.list
+
+# Plymouth boot theme. omarchy-refresh-plymouth copies into this directory without creating it, so
+# creating it here is also what makes that command work later.
+install -d /usr/share/plymouth/themes/omarchy
+cp -RT "$omarchy_default/plymouth" /usr/share/plymouth/themes/omarchy
+
+# Nautilus extensions - localsend.py is what puts "Send via LocalSend" in the file manager's menu.
+# Upstream seeds these through /etc/skel, which only reaches users created after installation, so on
+# a git-clone install where the user already exists nothing ever placed them. Seed both: /etc/skel,
+# because omarchy-reinstall-configs resyncs user defaults by replaying that tree, and the installing
+# user's home, so the extensions are present without creating a new account.
+# Create a directory inside the installing user's home owned by that user all the
+# way down. install -d only sets ownership on the final component, so seeding a
+# deep path like ~/.config/omarchy/branding as root leaves the ~/.config and
+# ~/.local/share roots owned by root - and the later run_user config.sh then
+# cannot write into them (its cp -R into ~/.config fails, so no shipped configs
+# reach the session and Hyprland starts bare). Walk the path from $user_home down
+# and install -d each still-missing component as the user.
+install_user_dir() {
+  local rel="${1#"$user_home"/}" owner="$OMARCHY_INSTALL_USER"
+  local group path="$user_home"
+  group="$(id -gn "$owner")"
+
+  local part
+  local IFS=/
+  for part in $rel; do
+    path="$path/$part"
+    [[ -d $path ]] || install -d -o "$owner" -g "$group" "$path"
+  done
+}
+
+skel_extensions="/etc/skel/.local/share/nautilus-python/extensions"
+install -d "$skel_extensions"
+cp -f "$omarchy_default"/nautilus-python/extensions/*.py "$skel_extensions/"
+
+if [[ -n ${OMARCHY_INSTALL_USER:-} ]]; then
+  user_home=$(getent passwd "$OMARCHY_INSTALL_USER" | cut -d: -f6)
+
+  if [[ -n $user_home && -d $user_home ]]; then
+    user_extensions="$user_home/.local/share/nautilus-python/extensions"
+    install_user_dir "$user_extensions"
+    cp -f "$omarchy_default"/nautilus-python/extensions/*.py "$user_extensions/"
+    chown "$OMARCHY_INSTALL_USER:$(id -gn "$OMARCHY_INSTALL_USER")" "$user_extensions"/*.py
+  fi
+fi
+
+# Branding text. omarchy-screensaver reads ~/.config/omarchy/branding/screensaver.txt and the about
+# screen reads about.txt; upstream seeds both through /etc/skel from the repo's logo.txt and
+# icon.txt (the mapping omarchy-branding-screensaver/-about use when resetting). Nothing placed them
+# here, so the screensaver failed with "File not found". Seeded the same two ways as the Nautilus
+# extensions above, and never overwriting branding the user has already customised.
+seed_branding() {
+  local dir="$1" owner="${2:-}"
+
+  if [[ -n $owner ]]; then
+    install_user_dir "$dir"
+  else
+    install -d "$dir"
+  fi
+
+  local pair source target
+  for pair in "logo.txt:screensaver.txt" "icon.txt:about.txt"; do
+    source="$OMARCHY_PATH/${pair%%:*}"
+    target="$dir/${pair##*:}"
+
+    [[ -f $source && ! -f $target ]] || continue
+    install -m644 ${owner:+-o "$owner" -g "$(id -gn "$owner")"} "$source" "$target"
+  done
+}
+
+seed_branding /etc/skel/.config/omarchy/branding
+
+if [[ -n ${OMARCHY_INSTALL_USER:-} && -n ${user_home:-} && -d ${user_home:-} ]]; then
+  seed_branding "$user_home/.config/omarchy/branding" "$OMARCHY_INSTALL_USER"
+fi
+
+systemctl daemon-reload

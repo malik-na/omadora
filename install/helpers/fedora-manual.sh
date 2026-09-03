@@ -10,6 +10,11 @@ if ! is_fedora; then
 fi
 
 # 0. Enable Flathub remote (required for Flatpak installs)
+#
+# Everything Flatpak here stays in the user installation. dnf pulls flatpak in during this same run,
+# and its system repository under /var/lib/flatpak is only created on the next boot - so a system
+# scoped install during a fresh Omarchy install fails with "opening repo: No such file or directory"
+# and leaves the apps missing. --user needs no such repository, and no sudo either.
 flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
 # 1. lazydocker (GitHub binary)
@@ -53,25 +58,46 @@ if ! command -v mise &>/dev/null; then
 fi
 
 # 4. typora (Flatpak)
-if ! command -v typora &>/dev/null; then
+if ! command -v typora &>/dev/null && ! flatpak info io.typora.Typora &>/dev/null; then
   echo "Installing typora (Flatpak)..."
-  flatpak install -y flathub io.typora.Typora
+  flatpak install -y --user flathub io.typora.Typora
 fi
 
 # 5. localsend (Flatpak)
 if ! command -v localsend &>/dev/null && ! flatpak info org.localsend.localsend_app &>/dev/null; then
   echo "Installing localsend (Flatpak)..."
-  flatpak install -y flathub org.localsend.localsend_app
+  flatpak install -y --user flathub org.localsend.localsend_app
 fi
 
-# 6. swayosd (COPR or build from source)
-if ! command -v swayosd-server &>/dev/null; then
-  echo "Installing swayosd (COPR or build from source)..."
-  sudo dnf copr enable -y erikreider/swayosd || true
-  if dnf list --available swayosd &>/dev/null; then
-    sudo dnf install -y swayosd
+# 5b. obsidian (Flatpak) - quattro preinstalls it; Fedora has no obsidian rpm
+if ! command -v obsidian &>/dev/null && ! flatpak info md.obsidian.Obsidian &>/dev/null; then
+  echo "Installing obsidian (Flatpak)..."
+  flatpak install -y --user flathub md.obsidian.Obsidian || echo "[WARN] Optional obsidian install failed, continuing..."
+fi
+
+# 5c. moonlight (Flatpak) - quattro preinstalls moonlight-qt; Fedora has no aarch64 rpm
+if ! command -v moonlight &>/dev/null && ! flatpak info com.moonlight_stream.Moonlight &>/dev/null; then
+  echo "Installing moonlight (Flatpak)..."
+  flatpak install -y --user flathub com.moonlight_stream.Moonlight || echo "[WARN] Optional moonlight install failed, continuing..."
+fi
+
+# 6. JetBrainsMono Nerd Font - the Quickshell shell, foot and the SDDM theme all render with
+# "JetBrainsMono Nerd Font", and Fedora only packages the plain jetbrains-mono-fonts (no glyphs).
+if ! fc-list 2>/dev/null | grep -qi "JetBrainsMono Nerd Font"; then
+  echo "Installing JetBrainsMono Nerd Font (nerd-fonts release)..."
+  nf_tag=$(curl -fsSL https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest | sed -n 's/.*"tag_name": "\([^"]*\)".*/\1/p' | head -1)
+  if [[ -z "$nf_tag" ]]; then
+    echo "[WARN] Could not determine nerd-fonts latest version, skipping..."
   else
-    echo "[WARN] swayosd not found in enabled repositories, skipping automatic install."
+    tmpdir=$(mktemp -d)
+    if curl -fL "https://github.com/ryanoasis/nerd-fonts/releases/download/${nf_tag}/JetBrainsMono.tar.xz" -o "$tmpdir/JetBrainsMono.tar.xz" &&
+      mkdir -p "$HOME/.local/share/fonts/JetBrainsMonoNerd" &&
+      tar -xJf "$tmpdir/JetBrainsMono.tar.xz" -C "$HOME/.local/share/fonts/JetBrainsMonoNerd"; then
+      fc-cache -f "$HOME/.local/share/fonts" >/dev/null 2>&1 || true
+    else
+      echo "[WARN] Failed to install JetBrainsMono Nerd Font, skipping..."
+    fi
+    rm -rf "$tmpdir"
   fi
 fi
 
@@ -101,42 +127,6 @@ if ! command -v eza &>/dev/null; then
 
   if ! command -v eza &>/dev/null; then
     echo "[INFO] Optional eza package is unavailable on this Fedora release"
-  fi
-fi
-
-# 7. satty (fallback install if base package step missed it)
-if ! command -v satty &>/dev/null; then
-  if dnf list --available satty --repo='copr:copr.fedorainfracloud.org:solopasha:hyprland' &>/dev/null; then
-    echo "Installing satty from solopasha COPR (fallback path)..."
-    sudo dnf install -y --repo='copr:copr.fedorainfracloud.org:solopasha:hyprland' satty || echo "[WARN] satty install from solopasha failed, continuing..."
-  elif dnf list --available satty &>/dev/null; then
-    echo "Installing satty (fallback path)..."
-    sudo dnf install -y satty || echo "[WARN] satty install failed, continuing..."
-  else
-    echo "[WARN] satty not available in enabled repos. Please build from source: https://github.com/marvinborner/satty"
-  fi
-fi
-
-# 7b. wayfreeze (optional enhancement for screenshot UX)
-if ! command -v wayfreeze &>/dev/null; then
-  if dnf list --available wayfreeze &>/dev/null; then
-    echo "Installing wayfreeze (optional)..."
-    sudo dnf install -y wayfreeze || echo "[WARN] Optional wayfreeze install failed, continuing..."
-  elif dnf list --available wayfreeze-git &>/dev/null; then
-    echo "Installing wayfreeze-git (optional)..."
-    sudo dnf install -y wayfreeze-git || echo "[WARN] Optional wayfreeze-git install failed, continuing..."
-  else
-    echo "[INFO] Optional wayfreeze package is unavailable on this Fedora release"
-  fi
-fi
-
-# 8. hyprland-guiutils
-if ! command -v hyprland-guiutils &>/dev/null; then
-  if dnf list --available hyprland-guiutils &>/dev/null; then
-    echo "Installing hyprland-guiutils (optional)..."
-    sudo dnf install -y hyprland-guiutils || echo "[WARN] Optional hyprland-guiutils install failed, continuing..."
-  else
-    echo "[WARN] hyprland-guiutils not available in repos. Please build from source: https://github.com/hyprwm/hyprland-guiutils"
   fi
 fi
 

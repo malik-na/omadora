@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Remove preinstalled Omarchy applications (web apps, TUIs, and selected packages).
-# This removes all web apps, TUIs, plus specific desktop applications.
+# omarchy:summary=Remove preinstalled Omarchy applications (web apps, TUIs, and selected packages).
 
 if gum confirm "Are you sure you want to remove all preinstalled web apps, TUI wrappers, and desktop applications?"; then
   echo -e "Removing preinstalled Omarchy applications...\n"
@@ -9,20 +8,21 @@ if gum confirm "Are you sure you want to remove all preinstalled web apps, TUI w
   omarchy-webapp-remove-all
   omarchy-tui-remove-all
 
-  cp ~/.config/hypr/bindings.conf ~/.config/hypr/bindings.conf.bak
-  cp "$OMARCHY_PATH/default/hypr/plain-bindings.conf" ~/.config/hypr/bindings.conf
+  mkdir -p ~/.local/state/omarchy
+  touch ~/.local/state/omarchy/preinstalls-removed
   hyprctl reload
 
-  # Remove npx stubs
-  rm -f ~/.local/bin/codex ~/.local/bin/gemini ~/.local/bin/copilot \
-       ~/.local/bin/opencode ~/.local/bin/playwright-cli ~/.local/bin/pi
+  # Remove mise stubs
+  rm -f ~/.local/bin/codex ~/.local/bin/claude ~/.local/bin/gemini ~/.local/bin/copilot \
+       ~/.local/bin/gh ~/.local/bin/opencode ~/.local/bin/playwright ~/.local/bin/playwright-cli ~/.local/bin/pi \
+       ~/.local/bin/ghui ~/.local/bin/hunk
 
   omarchy-pkg-drop \
     aether \
-    typora \
+    cliamp \
     spotify \
     libreoffice-fresh \
-    1password-beta \
+    1password \
     1password-cli \
     xournalpp \
     signal-desktop \
@@ -32,5 +32,11 @@ if gum confirm "Are you sure you want to remove all preinstalled web apps, TUI w
     kdenlive \
     lazydocker \
     opencode \
-    claude-code
+    claude-code \
+    github-cli
+
+  # Typora, LocalSend, Obsidian and Moonlight are delivered as Flatpaks on Fedora
+  # (install/helpers/fedora-manual.sh), not dnf packages, so omarchy-pkg-drop cannot remove them.
+  # Uninstall the flatpaks directly.
+  flatpak uninstall -y --user io.typora.Typora org.localsend.localsend_app md.obsidian.Obsidian com.moonlight_stream.Moonlight 2>/dev/null || true
 fi

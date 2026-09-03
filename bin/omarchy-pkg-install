@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# omarchy:summary=Prompt for package names and install them from the Fedora repositories.
+# omarchy:requires-sudo=true
 if (($# > 0)); then
   pkg_names="$*"
 elif command -v gum >/dev/null 2>&1; then

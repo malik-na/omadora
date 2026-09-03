@@ -1,27 +1,33 @@
 #!/bin/bash
-# Fedora: Install gum from GitHub release if not available in repos
+# Fedora: gum drives the installer's UI, so it has to be there before anything else runs.
 
-GUM_VERSION="0.14.0"
-
-# Detect architecture
-ARCH=$(uname -m)
-if [[ "$ARCH" == "aarch64" ]]; then
-  ARCH="arm64"
-elif [[ "$ARCH" == "x86_64" ]]; then
-  ARCH="x86_64"
+if command -v gum &>/dev/null; then
+  echo "[Omarchy] gum already installed."
+  exit 0
 fi
 
-GUM_URL="https://github.com/charmbracelet/gum/releases/download/v${GUM_VERSION}/gum_${GUM_VERSION}_Linux_${ARCH}.rpm"
+# Fedora ships gum, so ask dnf first. The GitHub release is only a fallback - and downloading from it
+# first is exactly how this broke: the pinned 0.14.0 asset no longer exists, so every install started
+# with a 404 and carried on with no UI.
+echo "[Omarchy] Installing gum..."
+if sudo dnf install -y gum; then
+  exit 0
+fi
 
-if ! command -v gum &>/dev/null; then
-  echo "[Omarchy] gum not found, downloading and installing from GitHub..."
-  tmp_rpm="/tmp/gum_${GUM_VERSION}_Linux_${ARCH}.rpm"
-  if curl -fL "$GUM_URL" -o "$tmp_rpm"; then
-    sudo dnf install -y "$tmp_rpm"
-    rm -f "$tmp_rpm"
-  else
-    echo "[WARN] Failed to download gum, installation UI may not work properly"
-  fi
+echo "[Omarchy] gum is not in the enabled repositories, falling back to the GitHub release..."
+
+GUM_VERSION="0.17.0"
+ARCH=$(uname -m)
+case "$ARCH" in
+aarch64) ARCH="arm64" ;;
+esac
+
+GUM_URL="https://github.com/charmbracelet/gum/releases/download/v${GUM_VERSION}/gum_${GUM_VERSION}_Linux_${ARCH}.rpm"
+tmp_rpm="/tmp/gum_${GUM_VERSION}_Linux_${ARCH}.rpm"
+
+if curl -fL "$GUM_URL" -o "$tmp_rpm"; then
+  sudo dnf install -y "$tmp_rpm"
+  rm -f "$tmp_rpm"
 else
-  echo "[Omarchy] gum already installed."
+  echo "[WARNING] Could not install gum. The installer's UI will not render correctly."
 fi

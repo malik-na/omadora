@@ -1,6 +1,10 @@
 #!/bin/bash
 
-# Install one of the supported development environments. Usually called via Install > Development > * in the Omarchy Menu.
+# omarchy:summary=Install a supported development environment
+# omarchy:name=dev-env
+# omarchy:args=<ruby|node|bun|deno|go|laravel|symfony|php|python|elixir|phoenix|rust|java|zig|ocaml|dotnet|clojure|scala>
+# omarchy:examples=omarchy install dev-env ruby | omarchy install dev-env node
+# omarchy:requires-sudo=true
 
 if [[ -z $1 ]]; then
   echo "Usage: omarchy-install-dev-env <ruby|node|bun|deno|go|laravel|symfony|php|python|elixir|phoenix|rust|java|zig|ocaml|dotnet|clojure|scala>" >&2
@@ -8,7 +12,7 @@ if [[ -z $1 ]]; then
 fi
 
 install_php() {
-  sudo dnf install -y php php-cli composer php-sqlite3 php-pecl-xdebug
+  sudo dnf install -y php php-cli composer php-pdo php-pecl-xdebug3
 
   # Install Path for Composer
   if [[ :$PATH: != *:$HOME/.config/composer/vendor/bin:* ]]; then

@@ -38,9 +38,6 @@ enhanced_tzupdate() {
         
         local new_time=$(date)
         notify-send "Timezone Updated" "New timezone: $detected_tz\nTime: $new_time" -t 8000
-        
-        # Restart waybar to update clock display
-        omarchy-restart-waybar >/dev/null 2>&1 || true
     else
         # Detection failed - offer manual selection
         notify-send "Auto-detection Failed" "Click to select timezone manually" -u normal -t 8000 -A "Select Manually=manual_selection"
