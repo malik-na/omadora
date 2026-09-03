@@ -117,14 +117,30 @@ sudo setfont ter-v22n
 
 ### Install Omarchy Mac Fedora
 
-As your regular sudo user;
+As your regular sudo user, after Fedora Asahi first-boot setup and Wi-Fi:
 
+```bash
+wget -qO- https://omarchy-mac.github.io/omarchy-mac-fedora/boot.sh | bash
+```
 
-Clone and run the installer:
+Or with curl:
+
+```bash
+curl -fsSL https://omarchy-mac.github.io/omarchy-mac-fedora/boot.sh | bash
+```
+
+That one-liner refreshes packages, clones this repo into `~/.local/share/omarchy`, and runs
+`install.sh`. To install from a fork or branch without editing the script:
+
+```bash
+OMARCHY_REPO=you/your-fork OMARCHY_REF=your-branch bash <(wget -qO- https://omarchy-mac.github.io/omarchy-mac-fedora/boot.sh)
+```
+
+#### Manual clone (offline / advanced)
 
 ```bash
 sudo dnf update
-git clone https://github.com/malik-na/omarchy-mac-fedora.git ~/.local/share/omarchy
+git clone https://github.com/omarchy-mac/omarchy-mac-fedora.git ~/.local/share/omarchy
 cd ~/.local/share/omarchy
 bash install.sh
 ```
