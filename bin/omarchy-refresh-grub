@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# omarchy:summary=Install the Omarchy GRUB theme and regenerate grub.cfg
+# omarchy:requires-sudo=true
+
+set -euo pipefail
+
+OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+theme_src="${OMARCHY_PATH}/default/grub/themes/omarchy"
+theme_dst="/boot/grub2/themes/omarchy"
+grub_default=/etc/default/grub
+
+if [[ ! -d $theme_src ]]; then
+  echo "Missing GRUB theme at $theme_src" >&2
+  exit 1
+fi
+
+if [[ ! -d /boot/grub2 ]]; then
+  echo "GRUB2 not found under /boot/grub2; skipping theme install" >&2
+  exit 0
+fi
+
+sudo mkdir -p "$theme_dst"
+sudo cp -RT "$theme_src" "$theme_dst"
+
+set_grub_key() {
+  local key="$1" value="$2"
+  if grep -q "^${key}=" "$grub_default" 2>/dev/null; then
+    sudo sed -i "s|^${key}=.*|${key}=${value}|" "$grub_default"
+  else
+    printf '%s=%s\n' "$key" "$value" | sudo tee -a "$grub_default" >/dev/null
+  fi
+}
+
+# Branding + short hidden timeout (Esc still shows the menu).
+set_grub_key GRUB_THEME "\"${theme_dst}/theme.txt\""
+set_grub_key GRUB_TIMEOUT 3
+set_grub_key GRUB_TIMEOUT_STYLE hidden
+set_grub_key GRUB_DISTRIBUTOR "\"Omarchy\""
+set_grub_key GRUB_TERMINAL_OUTPUT gfxterm
+set_grub_key GRUB_GFXMODE auto
+
+# Fallback colors if the theme fails to load.
+set_grub_key GRUB_COLOR_NORMAL "\"light-cyan/black\""
+set_grub_key GRUB_COLOR_HIGHLIGHT "\"black/light-green\""
+
+# Regenerate configs GRUB actually reads.
+if [[ -d /boot/efi/EFI ]]; then
+  efi_cfg=$(find /boot/efi/EFI -name grub.cfg 2>/dev/null | head -1 || true)
+  if [[ -n ${efi_cfg:-} ]]; then
+    sudo grub2-mkconfig -o "$efi_cfg"
+  fi
+fi
+
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+
+echo "[OK] Omarchy GRUB theme installed"

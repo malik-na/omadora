@@ -26,6 +26,12 @@ sudo /etc/grub.d/41_snapshots-btrfs || {
 }
 
 if [[ -d /boot/grub2 ]]; then
+  if [[ -d /boot/efi/EFI ]]; then
+    efi_cfg=$(find /boot/efi/EFI -name grub.cfg 2>/dev/null | head -1 || true)
+    if [[ -n ${efi_cfg:-} ]]; then
+      sudo grub2-mkconfig -o "$efi_cfg" || echo "[WARN] Failed to regenerate $efi_cfg"
+    fi
+  fi
   sudo grub2-mkconfig -o /boot/grub2/grub.cfg || {
     echo "[WARN] Failed to regenerate /boot/grub2/grub.cfg"
     exit 0

@@ -1,0 +1,34 @@
+# Omarchy GRUB theme — Tokyo Night palette (mirrors Limine branding on Arch)
+desktop-image: "background.png"
+desktop-color: "#1a1b26"
+title-text: ""
+message-color: "#c0caf5"
+terminal-left: "0"
+terminal-top: "0"
+terminal-width: "100%"
+terminal-height: "100%"
+terminal-border: "0"
+
++ boot_menu {
+  left = 20%
+  top = 40%
+  width = 60%
+  height = 40%
+  item_color = "#a9b1d6"
+  selected_item_color = "#9ece6a"
+  item_height = 36
+  item_padding = 12
+  item_spacing = 10
+  scrollbar = false
+}
+
++ label {
+  id = "__timeout__"
+  left = 20%
+  top = 85%
+  width = 60%
+  height = 24
+  color = "#565f89"
+  align = "center"
+  text = "Booting in %d seconds"
+}

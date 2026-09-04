@@ -89,7 +89,7 @@ sudo dnf install -y git
 #   OMARCHY_REPO=you/your-fork OMARCHY_REF=your-branch bash boot.sh
 # The branch is empty by default so the clone follows the repository's default branch, and the
 # installed checkout tracks whatever it was cloned from - `omarchy update` pulls from there.
-OMARCHY_REPO="${OMARCHY_REPO:-malik-na/omarchy-mac-fedora}"
+OMARCHY_REPO="${OMARCHY_REPO:-omarchy-mac/omarchy-mac-fedora}"
 OMARCHY_BRANCH="${OMARCHY_REF:-}"
 
 echo -e "\nCloning from https://github.com/${OMARCHY_REPO}.git (branch: ${OMARCHY_BRANCH:-default})"

@@ -181,6 +181,8 @@ omarchy-finalize-user --first-install </dev/null >>"$OMARCHY_INSTALL_LOG_FILE" 2
   omarchy_log_line "[$(date '+%Y-%m-%d %H:%M:%S')] Warning: omarchy-finalize-user reported an error (continuing)"
 
 # --- Login (SDDM + initramfs) ------------------------------------------------
+run_user "$OMARCHY_INSTALL/login/plymouth.sh"
+run_user "$OMARCHY_INSTALL/config/grub-theme.sh"
 run_user "$OMARCHY_INSTALL/login/sddm.sh"
 run_user "$OMARCHY_INSTALL/login/dracut.sh"
 
