@@ -1,27 +1,25 @@
-# Omarchy Mac Fedora — Quattro
+# Omadora — Quattro
 
-A concise, beginner-friendly guide to install Omarchy Mac Fedora on **Fedora Asahi Remix (aarch64)** for Apple Silicon Macs M1/M2
+A concise, beginner-friendly guide to install Omadora on **Fedora Asahi Remix (aarch64)** for Apple Silicon Macs M1/M2
 
 > ### 🆕 This is Omarchy "Quattro"
 > This branch tracks **Omarchy quattro** — a major rework of the desktop. The bar, launcher,
 > notifications, and OSD (waybar / walker / mako / swayosd) are replaced by a single **Quickshell**
 > shell, and all Hyprland config — including every keybinding — moves to **Lua** (`.conf` → `.lua`).
 > **→ See [QUATTRO-CHANGES.md](QUATTRO-CHANGES.md) for the full list of what changed.**
-> For the previous 3.8.x line, use the `sync/upstream-v3.8.2` branch.
 
 _This project is an extension of [Omarchy Mac](https://github.com/malik-na/omarchy-mac) project._
 
-**Important:** Fedora Asahi Minimal first boot lands in a TTY setup flow. You must complete all prompts there before running Omarchy Mac Fedora installer steps.
 
-[![License](https://img.shields.io/github/license/malik-na/omarchy-mac-fedora)](LICENSE) [![Stars](https://img.shields.io/github/stars/malik-na/omarchy-mac-fedora?style=social)](https://github.com/malik-na/omarchy-mac-fedora/stargazers)
+[![License](https://img.shields.io/github/license/malik-na/omadora)](LICENSE) [![Stars](https://img.shields.io/github/stars/malik-na/omadora?style=social)](https://github.com/malik-na/omadora/stargazers)
 
 ---
 
 ## Quick links
 
 - Fedora Asahi device support: https://asahilinux.org/fedora/#device-support
-- Omarchy Mac Fedora Discord: https://discord.gg/jdqjcPxxJe
-- External monitor discussion: https://github.com/malik-na/omarchy-mac-fedora/discussions/73
+- Omadora Discord: https://discord.gg/jdqjcPxxJe
+- External monitor discussion: https://github.com/malik-na/omadora/discussions/73
 - Support the project: https://buymeacoffee.com/malik2015no
 
 ---
@@ -43,26 +41,6 @@ Unsupported targets:
 - x86_64
 - **Fedora Asahi Remix 43 and older** - see below
 
-### Already on Fedora Asahi Remix 43?
-
-Omarchy 3.8.2 requires Fedora 44. Several packages it needs no longer exist on 43, and the Hyprland
-0.55 build it targets is only published for the 44 chroot. Upgrade Fedora first:
-
-```bash
-sudo dnf upgrade --refresh
-sudo dnf install dnf-plugin-system-upgrade
-sudo dnf system-upgrade download --releasever=44
-sudo dnf system-upgrade reboot
-```
-
-The machine reboots into the upgrade, so close your work first. When it comes back up, run
-`omarchy-update`.
-
-Omarchy never runs the system upgrade for you: it reboots the machine and can leave an Asahi install
-unbootable, so it is your call, not the installer's. Until you upgrade, the installer, `omarchy-update`
-and `omarchy-migrate` all stop with these instructions and change nothing - an existing Fedora 43
-install keeps working on the Omarchy version it already has.
-
 Checklist:
 
 - [ ] Backup completed
@@ -74,24 +52,7 @@ Checklist:
 
 ---
 
-## Connect to Wi-Fi before installation
-
-Use one of these methods from your Fedora Asahi session before running the installer.
-
-Use `nmcli` (NetworkManager CLI):
-
-```bash
-# Check network devices
-nmcli device status
-
-# Connect to a network
-nmcli device wifi connect "SSID_NAME" password "PASSWORD"
-```
-
-The connection you make here carries over into the installed system: the installer leaves
-NetworkManager on its default `wpa_supplicant` backend and does not touch saved profiles.
-
-Fedora Asahi Minimal normally includes the required first-boot setup prompts; use these commands only to ensure networking is ready before install.
+**Important:** Fedora Asahi Minimal first boot lands in a TTY setup flow. You must complete all prompts there before running Omadora installer steps.
 
 ---
 
@@ -115,7 +76,29 @@ sudo dnf install -y terminus-fonts-console || sudo dnf install -y terminus-fonts
 sudo setfont ter-v22n
 ```
 
-### Install Omarchy Mac Fedora
+---
+
+## Connect to Wi-Fi before installation
+
+Use one of these methods from your Fedora Asahi session before running the installer.
+
+Use `nmcli` (NetworkManager CLI):
+
+```bash
+# Check network devices
+nmcli device status
+
+# Connect to a network
+nmcli device wifi connect "SSID_NAME" password "PASSWORD"
+```
+
+The connection you make here carries over into the installed system: the installer leaves
+NetworkManager on its default `wpa_supplicant` backend and does not touch saved profiles.
+
+Fedora Asahi Minimal normally includes the required first-boot setup prompts; use these commands only to ensure networking is ready before install.
+
+
+### Install Omadora
 
 As your regular sudo user;
 
@@ -124,7 +107,7 @@ Clone and run the installer:
 
 ```bash
 sudo dnf update
-git clone https://github.com/malik-na/omarchy-mac-fedora.git ~/.local/share/omarchy
+git clone https://github.com/malik-na/omadora.git ~/.local/share/omarchy
 cd ~/.local/share/omarchy
 bash install.sh
 ```
