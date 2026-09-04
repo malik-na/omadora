@@ -232,3 +232,4 @@ libepoxy
 fontconfig
 gtk4
 xdg-desktop-portal
+plymouth-plugin-script

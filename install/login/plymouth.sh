@@ -25,6 +25,11 @@ fi
 
 append_cmdline_args() {
   local current="$1"
+  # Drop duplicate tokens first (repeat runs used to stack quiet/splash/rootflags).
+  current=$(awk '{
+    for (i = 1; i <= NF; i++) if (!seen[$i]++) out = (out ? out " " : "") $i
+    print out
+  }' <<<"$current")
   local args=("quiet" "splash")
   local arg
   for arg in "${args[@]}"; do
@@ -32,7 +37,6 @@ append_cmdline_args() {
       current="${current:+$current }$arg"
     fi
   done
-  # Trim
   echo "$current" | awk '{$1=$1; print}'
 }
 

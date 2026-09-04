@@ -5,6 +5,7 @@
 
 set -euo pipefail
 
+OMARCHY_PATH="${OMARCHY_PATH:-${OMARCHY_PATH_DEFAULT:-$HOME/.local/share/omarchy}}"
 theme_src="${OMARCHY_PATH}/default/plymouth"
 theme_dst="/usr/share/plymouth/themes/omarchy"
 

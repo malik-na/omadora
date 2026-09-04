@@ -5,6 +5,7 @@
 
 set -euo pipefail
 
+OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
 theme_src="${OMARCHY_PATH}/default/grub/themes/omarchy"
 theme_dst="/boot/grub2/themes/omarchy"
 grub_default=/etc/default/grub
